@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 
 import { canWriteIncidents } from "@/lib/auth/roles";
 import { requireAuthenticatedUser } from "@/lib/auth/session";
-import { getDb, schema } from "@/lib/db";
+import { createIncidentWithDocument } from "@/lib/incidents/create";
 
 const validSeverities = new Set(["low", "medium", "high", "critical"]);
 
@@ -48,26 +48,11 @@ export async function createManualIncidentAction(formData: FormData) {
   const severity = parseSeverity(formData);
   const impact = parseImpact(formData);
 
-  const db = getDb();
-
-  const incidentId = await db.transaction(async (tx) => {
-    const [createdIncident] = await tx
-      .insert(schema.incidents)
-      .values({
-        title,
-        severity,
-        impact,
-        reporterId: authContext.user.id,
-      })
-      .returning({ id: schema.incidents.id });
-
-    await tx.insert(schema.incidentDocuments).values({
-      incidentId: createdIncident.id,
-      contentJson: [],
-      updatedBy: authContext.user.id,
-    });
-
-    return createdIncident.id;
+  const incidentId = await createIncidentWithDocument({
+    title,
+    severity,
+    impact,
+    reporterId: authContext.user.id,
   });
 
   revalidatePath("/dashboard/incidents");

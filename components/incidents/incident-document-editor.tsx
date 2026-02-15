@@ -329,7 +329,7 @@ export function IncidentDocumentEditor({
           <p className="text-xs text-muted-foreground">{headerStatus}</p>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-auto rounded-lg border border-border/60 bg-background/30 p-1 [&_.bn-container]:min-h-full [&_.bn-editor]:min-h-full">
+        <div className="incident-editor-surface min-h-0 flex-1 overflow-auto rounded-lg border border-border/60 bg-background/30 [&_.bn-container]:min-h-full [&_.bn-editor]:min-h-full">
           <BlockNoteView
             editor={editor}
             editable={canWrite}
