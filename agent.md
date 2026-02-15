@@ -12,6 +12,7 @@ Phase 0 ist ein 2-Tage-Demo-Inkrement mit belastbarer Basisfunktion, die auch oh
 - Bei Implementierungsauftraegen immer zuerst dort Feature-ID und Abhaengigkeiten aufloesen.
 - Fuer parallele Umsetzung die Lanes und Start-/Finish-Checklist aus dem Plan befolgen.
 - Pro Aufgabe genau einen Feature-Branch nach Plan-Schema verwenden (`feat/p0-<id>-<slug>`).
+- Feature-Branches werden nach Abschluss standardmaessig **nicht** automatisch geloescht (Historie bleibt fuer Nachvollziehbarkeit erhalten).
 - Verbindlicher Ablauf pro Feature:
   1. User-Auftrag analysieren und Feature im Plan identifizieren (neu oder bestehend).
   2. Feature im eigenen Branch implementieren.
@@ -21,6 +22,7 @@ Phase 0 ist ein 2-Tage-Demo-Inkrement mit belastbarer Basisfunktion, die auch oh
   6. Feature im Plan als done markieren (Status + Delivery Notes + Open Questions).
   7. Learnings in `docs/agent-learnings.md` loggen.
   8. Mit den geloggten Learnings zurueckmelden und nach dem naechsten Task fragen.
+- Optional spaeter: Branch-Cleanup nur explizit auf User-Wunsch (lokal/remote getrennt bestaetigen).
 - Nach Umsetzung den zugehoerigen Feature-Block im Plan aktualisieren:
   - Status
   - Delivery Notes

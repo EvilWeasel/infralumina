@@ -38,3 +38,11 @@ Regeln:
 - Entscheidung: Vercel AI SDK + OpenAI-kompatibler lokaler Provider (`llama.cpp`) fuer strukturierte Feldextraktion; separates AI-Create-Sheet mit Analyze/Re-Analyze/Preview/Create; wiederverwendbare Incident-Create-Logik extrahiert.
 - Ergebnis: P0-08 End-to-End funktioniert (inkl. Redirect + initialem Dokumentdraft), deutsches DateTime-Handling fuer `Started At` ist validiert, und Fixture-Corpus fuer Regressionstests liegt unter `docs/test-fixtures/`.
 - Risiko/Follow-up: Provider-/Modellverhalten bei Structured Output (Warnungen bei lokalem Endpoint) weiterhaerten; fuer P0-09 nativen BlockNote-AI Accept/Reject-Flow anschliessen.
+
+### 2026-02-15 - Workflow Update: Branch-Retention statt Auto-Delete
+- Branch: `main`
+- Commit: `pending`
+- Kontext: Wiederholte Policy-Blocker bei `git branch -d/--delete` im Agent-Runner trotz erfolgreicher Feature-Merges.
+- Entscheidung: Standard-Workflow angepasst: Feature-Branches nach Abschluss nicht automatisch loeschen; Cleanup nur auf expliziten User-Wunsch.
+- Ergebnis: Agent-Flow ist robuster gegen Runner-Policy-Restriktionen und Merge/Push bleibt unblockiert.
+- Risiko/Follow-up: Spaeter optional dedizierten Cleanup-Step einfuehren, sobald Policy/Allowlist fuer Branch-Delete stabil konfiguriert ist.
