@@ -8,20 +8,34 @@ Phase 0 ist ein 2-Tage-Demo-Inkrement mit belastbarer Basisfunktion, die auch oh
 
 ## Agentic Workflow (Pflicht fuer Implementierung)
 - Primarer Umsetzungsplan: `docs/phase0-implementation-plan.md`
+- Persistente Memory-Datei: `docs/agent-learnings.md`
 - Bei Implementierungsauftraegen immer zuerst dort Feature-ID und Abhaengigkeiten aufloesen.
 - Fuer parallele Umsetzung die Lanes und Start-/Finish-Checklist aus dem Plan befolgen.
 - Pro Aufgabe genau einen Feature-Branch nach Plan-Schema verwenden (`feat/p0-<id>-<slug>`).
 - Verbindlicher Ablauf pro Feature:
-  1. Feature-Branch erstellen.
-  2. Feature vollstaendig implementieren und lokal pruefen (mind. Lint + Build + Kernflow manuell).
-  3. User zur Verifikation auffordern (mit konkreter Test-Checklist).
-  4. Erst nach User-Freigabe committen, in `main` mergen, Feature-Branch loeschen.
-  5. Danach naechstes Feature starten.
+  1. User-Auftrag analysieren und Feature im Plan identifizieren (neu oder bestehend).
+  2. Feature im eigenen Branch implementieren.
+  3. Typecheck + Tests ausfuehren.
+  4. Wenn Checks grün sind: Aenderungen kurz zusammenfassen und User um Verifikation bitten.
+  5. Nach User-Verifikation committen.
+  6. Feature im Plan als done markieren (Status + Delivery Notes + Open Questions).
+  7. Learnings in `docs/agent-learnings.md` loggen.
+  8. Mit den geloggten Learnings zurueckmelden und nach dem naechsten Task fragen.
 - Nach Umsetzung den zugehoerigen Feature-Block im Plan aktualisieren:
   - Status
   - Delivery Notes
   - Open Questions
 - Wenn PRD und Plan abweichen, gilt `docs/prd.md`; danach den Plan aktualisieren.
+
+## Persistente Memory-Strategie
+- Quellen fuer Agent-Memory:
+  - `docs/prd.md` (Produktanforderungen)
+  - `docs/phase0-implementation-plan.md` (Umsetzungsstatus/Abhaengigkeiten)
+  - `docs/agent-learnings.md` (praxisnahe Learnings)
+  - Git-Historie (`git log`) als nachvollziehbare Zeitlinie
+- Learnings-Log ist append-only (kein Umschreiben alter Eintraege).
+- Pro abgeschlossenem Feature genau ein Learning-Block.
+- Learnings immer erst nach User-Verifikation + Commit eintragen.
 
 ## Phase-0 Scope (Must-Have)
 1. Landing Page (`/`) mit GitHub Login und Redirect für eingeloggte User auf `/dashboard/incidents`.
@@ -106,6 +120,10 @@ Wenn Pflichtfelder fehlen, Follow-up-Fragen gezielt für fehlende Felder stellen
 - Dev: `bun run dev`
 - Lint: `bun run lint`
 - Build: `bun run build`
+- Typecheck (falls kein Script): `bunx tsc --noEmit`
+- Tests:
+  - bevorzugt `bun run test`
+  - falls keine Tests konfiguriert sind: explizit als Luecke reporten
 
 ## Definition of Done (Phase 0, kurz)
 - Auth + Redirect funktionieren.

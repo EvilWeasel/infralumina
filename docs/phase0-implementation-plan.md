@@ -379,7 +379,7 @@ Open Questions:
 
 ## P0-07 Incident Detail + Meta-Update + Dokument Save
 
-Status: TODO  
+Status: DONE  
 Branch: `feat/p0-07-incident-detail-editor-save`  
 Depends On: P0-06  
 Tags: `incident-detail`, `blocknote`, `metadata`, `save`
@@ -392,7 +392,7 @@ Scope:
 - Editierbare Meta-Felder:
   - Title (inline), Status (dropdown), Severity (dropdown)
 - Metadata-Anzeige: Reporter, Created, Started, Resolved.
-- BlockNote Editor (client-only) + expliziter Save fuer Dokument.
+- BlockNote Editor (client-only) mit debounced Auto-save und Save-Statusanzeige.
 
 Implementierungsschritte:
 1. Detaildaten serverseitig laden und rendern.
@@ -412,10 +412,23 @@ Tests:
 - Lint + Build.
 
 Delivery Notes:
-- -
+- Implemented full detail workspace in `app/dashboard/incidents/[id]/page.tsx` with editor-first layout.
+- Added server actions in `app/dashboard/incidents/[id]/actions.ts`:
+  - metadata update with role guard
+  - document save with role guard
+- Added client components:
+  - `components/incidents/incident-meta-form.tsx`
+  - `components/incidents/incident-document-editor.tsx`
+- Added shared incident presentation helpers in `lib/incidents/presentation.ts` for labels and colored badges.
+- Added BlockNote dependencies and CSS integration (`package.json`, `bun.lock`, `app/globals.css`).
+- Added debounced autosave (3s), compact save-state indicator in document header, and unsaved-change guards:
+  - in-app navigation dialog
+  - browser native `beforeunload` for tab close/reload
+- Checks run: `bun run lint` (passes with one pre-existing warning), `bun run build` (passes).
 
 Open Questions:
-- -
+- Browser `beforeunload` guard can protect against tab close/refresh with unsaved edits, but custom dialogs are limited by browser APIs.
+- Detail page should move toward a Notion-like editor-first layout in Phase 1: reduce container nesting/padding and keep metadata/navigation lighter.
 
 ## P0-08 AI Create Incident from Text (Follow-up)
 

@@ -239,15 +239,22 @@ Route: `/dashboard/incidents/[id]`
 **Top Bar**
 
 * Back (“Incidents”)
-* Title editable (inline input)
-* Status dropdown
-* Severity dropdown
-* Metadata: Reporter, Created, Started, Resolved
+* Incident updated timestamp
+* Compact summary with colored badges for Status + Severity
+* Collapsible Meta-Bereich mit:
+  * Title editable
+  * Status dropdown
+  * Severity dropdown
+  * Metadata: Reporter, Created, Started, Resolved
 
 **Main Content**
 
 * BlockNote Editor (client-only)
-* Save button (oder Auto-save + “Saved” indicator; Phase 0: Save ist ok)
+* Debounced Auto-save (3s nach letzter Aenderung)
+* Save-state Indikator in der Dokument-Headerzeile (Saving/Unsaved/Last update)
+* Unsaved-changes Guard:
+  * In-App Navigation via Dialog (Bleiben / Verlassen nach erfolgreichem Save)
+  * Browser-Tab-Close/-Reload via nativer `beforeunload` Prompt
 
 **Blocknote /ai Menü Integration**
 
@@ -416,14 +423,13 @@ Am Ende von 2 Tagen:
 * Admin page (role management)
 * Incidents list table mit relevanten Spalten inkl. Resolved
 * Incident create sheet (minimal)
-* Incident detail page mit BlockNote editor + Save
+* Incident detail page mit editor-first Layout, collapsible Meta und BlockNote Auto-save
 * AI Create incident from paste (mit Missing field follow-ups)
 * AI Improve document mit nativer BlockNote AI (`@blocknote/xl-ai`) inkl. Accept/Reject
 
 ## Nice-to-have (nur wenn Zeit)
 
 * Simple search/filter in Incident table
-* Auto-save indicator im BlockNote Editor
 * “Append notes from text” AI action in blocknote `/ai` command
 
 ---
