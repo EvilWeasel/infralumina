@@ -9,11 +9,14 @@ Phase 0 ist ein 2-Tage-Demo-Inkrement mit belastbarer Basisfunktion, die auch oh
 ## Agentic Workflow (Pflicht fuer Implementierung)
 - Primarer Umsetzungsplan: `docs/phase0-implementation-plan.md`
 - Persistente Memory-Datei: `docs/agent-learnings.md`
+- Kurzzeit-Planung:
+  - `current-plan.md` (aktiver Arbeitsplan)
+  - `plan-archive.md` (abgeschlossene Plan-Segmente)
 - Bei Implementierungsauftraegen immer zuerst dort Feature-ID und Abhaengigkeiten aufloesen.
 - Fuer parallele Umsetzung die Lanes und Start-/Finish-Checklist aus dem Plan befolgen.
 - Pro Aufgabe genau einen Feature-Branch nach Plan-Schema verwenden (`feat/p0-<id>-<slug>`).
 - Feature-Branches werden nach Abschluss standardmaessig **nicht** automatisch geloescht (Historie bleibt fuer Nachvollziehbarkeit erhalten).
-- Verbindlicher Ablauf pro Feature:
+- Verbindlicher Ablauf pro Feature (Standard lokal/interaktiv):
   1. User-Auftrag analysieren und Feature im Plan identifizieren (neu oder bestehend).
   2. Feature im eigenen Branch implementieren.
   3. Typecheck + Tests ausfuehren.
@@ -22,6 +25,16 @@ Phase 0 ist ein 2-Tage-Demo-Inkrement mit belastbarer Basisfunktion, die auch oh
   6. Feature im Plan als done markieren (Status + Delivery Notes + Open Questions).
   7. Learnings in `docs/agent-learnings.md` loggen.
   8. Mit den geloggten Learnings zurueckmelden und nach dem naechsten Task fragen.
+- Verbindlicher Ablauf fuer Cloud-Agent-Lauf (ohne Human-in-the-loop):
+  1. User-Ziel in `current-plan.md` in konkrete Feature-Pakete zerlegen (inkl. Abhaengigkeiten, Reihenfolge, Parallelisierung).
+  2. Features selbststaendig implementieren, testen, committen, pushen und PRs erstellen.
+  3. Nach jedem abgeschlossenen Feature den aktiven Abschnitt aus `current-plan.md` nach `plan-archive.md` verschieben.
+  4. Ohne Zwischenfreigaben direkt mit dem naechsten angeforderten Feature fortfahren, bis alle User-Features umgesetzt sind.
+  5. Erst am Ende Gesamtstatus reporten (inkl. PR-Liste, Tests, offene Risiken).
+- `current-plan.md` immer minimal halten:
+  - nur aktive/naechste Aufgaben
+  - erledigte Abschnitte sofort archivieren
+  - keine langen historischen Logs in der aktiven Datei
 - Optional spaeter: Branch-Cleanup nur explizit auf User-Wunsch (lokal/remote getrennt bestaetigen).
 - Nach Umsetzung den zugehoerigen Feature-Block im Plan aktualisieren:
   - Status
@@ -34,6 +47,8 @@ Phase 0 ist ein 2-Tage-Demo-Inkrement mit belastbarer Basisfunktion, die auch oh
   - `docs/prd.md` (Produktanforderungen)
   - `docs/phase0-implementation-plan.md` (Umsetzungsstatus/Abhaengigkeiten)
   - `docs/agent-learnings.md` (praxisnahe Learnings)
+  - `current-plan.md` (kurzfristiger Arbeitskontext)
+  - `plan-archive.md` (abgeschlossene Plan-Segmente)
   - Git-Historie (`git log`) als nachvollziehbare Zeitlinie
 - Learnings-Log ist append-only (kein Umschreiben alter Eintraege).
 - Pro abgeschlossenem Feature genau ein Learning-Block.

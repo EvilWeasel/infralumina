@@ -22,7 +22,10 @@ import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { saveIncidentDocumentAction } from "@/app/dashboard/incidents/[id]/actions";
+import {
+  improveIncidentDocumentAction,
+  saveIncidentDocumentAction,
+} from "@/app/dashboard/incidents/[id]/actions";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -140,10 +143,12 @@ function IncidentDocumentEditorInner({
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingSavePromiseRef = useRef<Promise<boolean> | null>(null);
   const isAiRunningRef = useRef(false);
+  const isApplyingServerDocumentRef = useRef(false);
 
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(initialDocumentUpdatedAt);
   const [isAiRunning, setIsAiRunning] = useState(false);
+  const [aiActionError, setAiActionError] = useState<string | null>(null);
 
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
   const [pendingNavigationHref, setPendingNavigationHref] = useState<string | null>(null);
@@ -240,6 +245,12 @@ function IncidentDocumentEditorInner({
     const unsubscribe = editor.onChange(() => {
       const snapshot = JSON.stringify(editor.document);
       currentSnapshotRef.current = snapshot;
+
+      if (isApplyingServerDocumentRef.current) {
+        lastSavedSnapshotRef.current = snapshot;
+        setSaveState("saved");
+        return;
+      }
 
       if (isAiRunningRef.current) {
         setSaveState("dirty");
@@ -390,46 +401,44 @@ function IncidentDocumentEditorInner({
       return;
     }
 
-    const ai = editor.getExtension(AIExtension);
-
-    if (!ai) {
-      return;
-    }
-
-    const firstRootBlock = editor.document[0];
-
-    if (!firstRootBlock) {
-      return;
-    }
-
-    ai.openAIMenuAtBlock(firstRootBlock.id);
-
     if (autosaveTimerRef.current) {
       clearTimeout(autosaveTimerRef.current);
       autosaveTimerRef.current = null;
     }
 
+    setAiActionError(null);
     setIsAiRunning(true);
 
     try {
-      await ai.invokeAI({
-        userPrompt:
-          [
-            "Ueberarbeite die Incident-Dokumentation als EIN konsistentes Dokument.",
-            "Wichtig: Keine zweite, parallele Struktur einfuegen.",
-            "Konsolidiere bestehende Inhalte, entferne Duplikate und ersetze Platzhaltertexte.",
-            "Nutze nur vorhandene Fakten aus dem Dokument; fehlende Informationen als offene Punkte markieren.",
-            "Bevorzugte Struktur: Summary, Impact, Timeline, Investigation, Mitigation/Resolution, Follow-ups.",
-            "Metadaten (Titel, Severity, Startzeit, Impact) nur einmal und sinnvoll eingebettet darstellen.",
-            "Den Eingangstext genau einmal als Quelle beibehalten.",
-          ].join(" "),
-        useSelection: false,
-        streamToolsProvider,
+      const sourceText = editor.blocksToMarkdownLossy(editor.document);
+      const result = await improveIncidentDocumentAction({
+        incidentId,
+        sourceText,
       });
+
+      if (result.status === "error") {
+        setAiActionError(result.message);
+        return;
+      }
+
+      const nextDocument = normalizeInitialContent(result.contentJson);
+      const blockIds = editor.document.map((block) => block.id);
+
+      isApplyingServerDocumentRef.current = true;
+      editor.replaceBlocks(blockIds, nextDocument);
+
+      const nextSnapshot = JSON.stringify(editor.document);
+      currentSnapshotRef.current = nextSnapshot;
+      lastSavedSnapshotRef.current = nextSnapshot;
+      setSaveState("saved");
+      setLastSavedAt(result.updatedAt);
     } finally {
+      queueMicrotask(() => {
+        isApplyingServerDocumentRef.current = false;
+      });
       setIsAiRunning(false);
     }
-  }, [canWrite, editor, isAiRunning, streamToolsProvider]);
+  }, [canWrite, editor, incidentId, isAiRunning]);
 
   return (
     <>
@@ -462,13 +471,17 @@ function IncidentDocumentEditorInner({
           </div>
         </div>
 
-        <div className="incident-editor-surface min-h-0 flex-1 overflow-auto rounded-lg border border-border/60 bg-card [&_.bn-container]:min-h-full [&_.bn-editor]:min-h-full">
+        {aiActionError ? (
+          <p className="text-xs text-destructive">{aiActionError}</p>
+        ) : null}
+
+        <div className="incident-editor-surface min-h-0 flex-1 overflow-hidden rounded-lg border border-border/60 bg-card">
           <BlockNoteView
             editor={editor}
             editable={canWrite}
             theme={resolvedTheme === "dark" ? "dark" : "light"}
             slashMenu={false}
-            className="h-full"
+            className="incident-editor-view h-full overflow-y-auto"
           >
             <SuggestionMenuController
               triggerCharacter="/"

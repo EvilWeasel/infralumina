@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { canWriteIncidents } from "@/lib/auth/roles";
 import { requireAuthenticatedUser } from "@/lib/auth/session";
 import { getDb, schema } from "@/lib/db";
+import { recomposeIncidentDocument } from "@/lib/incidents/ai-document-recompose";
 import type { Database } from "@/lib/supabase/database.types";
 
 export type IncidentDetailActionState = {
@@ -74,6 +75,16 @@ function parseDocumentContent(rawValue: unknown) {
   }
 
   return rawValue;
+}
+
+function parseSourceText(rawValue: string) {
+  const sourceText = rawValue.trim();
+
+  if (!sourceText) {
+    throw new Error("Dokument ist leer.");
+  }
+
+  return sourceText;
 }
 
 function createErrorState(message: string): IncidentDetailActionState {
@@ -218,5 +229,95 @@ export async function saveIncidentDocumentAction(input: {
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to save document";
     return createErrorState(message);
+  }
+}
+
+export type ImproveIncidentDocumentResult = IncidentDetailActionState & {
+  contentJson?: unknown;
+};
+
+export async function improveIncidentDocumentAction(input: {
+  incidentId: string;
+  sourceText: string;
+}): Promise<ImproveIncidentDocumentResult> {
+  try {
+    const authContext = await requireAuthenticatedUser();
+
+    if (!canWriteIncidents(authContext.profile.role)) {
+      throw new Error("Write access required");
+    }
+
+    const incidentId = parseIncidentId(input.incidentId);
+    const sourceText = parseSourceText(input.sourceText);
+
+    const db = getDb();
+
+    const [incident] = await db
+      .select({
+        id: schema.incidents.id,
+        title: schema.incidents.title,
+        severity: schema.incidents.severity,
+        impact: schema.incidents.impact,
+        startedAt: schema.incidents.startedAt,
+      })
+      .from(schema.incidents)
+      .where(eq(schema.incidents.id, incidentId))
+      .limit(1);
+
+    if (!incident) {
+      throw new Error("Incident not found");
+    }
+
+    const recomposedContent = await recomposeIncidentDocument({
+      incidentTitle: incident.title,
+      incidentSeverity: incident.severity,
+      incidentImpact: incident.impact,
+      incidentStartedAt: incident.startedAt,
+      sourceText,
+    });
+
+    const updatedTimestamp = await db.transaction(async (tx) => {
+      const [savedDocument] = await tx
+        .insert(schema.incidentDocuments)
+        .values({
+          incidentId,
+          contentJson: recomposedContent,
+          updatedBy: authContext.user.id,
+        })
+        .onConflictDoUpdate({
+          target: schema.incidentDocuments.incidentId,
+          set: {
+            contentJson: recomposedContent,
+            updatedBy: authContext.user.id,
+            updatedAt: new Date(),
+          },
+        })
+        .returning({ updatedAt: schema.incidentDocuments.updatedAt });
+
+      await tx
+        .update(schema.incidents)
+        .set({ updatedAt: new Date() })
+        .where(eq(schema.incidents.id, incidentId));
+
+      return savedDocument.updatedAt;
+    });
+
+    revalidatePath("/dashboard/incidents");
+    revalidatePath(`/dashboard/incidents/${incidentId}`);
+
+    return {
+      status: "success",
+      message: "Dokument mit AI neu strukturiert.",
+      updatedAt: updatedTimestamp?.toISOString() ?? null,
+      contentJson: recomposedContent,
+    };
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "AI-Recompose fehlgeschlagen";
+    return {
+      status: "error",
+      message,
+      updatedAt: null,
+    };
   }
 }

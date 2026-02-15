@@ -60,7 +60,8 @@ Jeder Agent arbeitet immer so:
 | P0-07 | Incident Detail + Meta-Update + Dokument Save | `feat/p0-07-incident-detail-editor-save` | P0-06 | DONE |
 | P0-08 | AI Create Incident from Text (Follow-up) | `feat/p0-08-ai-create-incident` | P0-06 | DONE |
 | P0-09 | AI Improve Document (BlockNote AI) | `feat/p0-09-ai-improve-document` | P0-07 | DONE |
-| P0-10 | End-to-End Hardening + Demo QA | `feat/p0-10-phase0-hardening` | P0-04..P0-09 | TODO |
+| P0-10 | AI Document Recompose + Template Reliability | `feat/p0-10-ai-doc-recompose` | P0-08, P0-09 | REVIEW |
+| P0-11 | End-to-End Hardening + Demo QA | `feat/p0-11-phase0-hardening` | P0-04..P0-10 | TODO |
 
 ## 5.1 Parallelisierungs-Lanes (fuer mehrere Agents)
 
@@ -69,7 +70,8 @@ Empfohlene Reihenfolge mit minimalen Konflikten:
 - Lane B (RBAC/Admin): P0-04 (startet nach P0-01 + P0-03)
 - Lane C (Incident Core): P0-05 -> P0-06 -> P0-07
 - Lane D (AI): P0-08 (nach P0-06), P0-09 (nach P0-07)
-- Lane E (Stabilisierung): P0-10 am Ende
+- Lane E (AI Follow-up): P0-10 nach P0-09
+- Lane F (Stabilisierung): P0-11 am Ende
 
 Regel fuer parallele Arbeit:
 - Agent darf ein Feature nur starten, wenn `Depends On` auf `DONE` oder in den Zielbranch gemerged ist.
@@ -535,42 +537,117 @@ Delivery Notes:
 - Checks run: `bun run lint` (passes, one pre-existing warning), `bunx tsc --noEmit` (passes), `bun run build` (passes).
 
 Open Questions:
-- Lokales LLM-Tool-Calling kann bei komplexen Dokumenten weiterhin instabil sein (modellbedingt). Fuer P0-10: Fallback/Retry-Strategie fuer AI-Improve-Fehler UX klar definieren.
+- Lokales LLM-Tool-Calling kann bei komplexen Dokumenten weiterhin instabil sein (modellbedingt). P0-10 fuehrt deshalb einen stabilen Recompose-Flow fuer den Detailseiten-Button ein.
 
-## P0-10 End-to-End Hardening + Demo QA
+## P0-10 AI Document Recompose + Template Reliability
+
+Status: REVIEW  
+Branch: `feat/p0-10-ai-doc-recompose`  
+Depends On: P0-08, P0-09  
+Tags: `ai`, `editor`, `ux`, `reliability`
+
+Ziel:
+- AI-Create Dokumenttemplate auf finale Incident-Struktur umstellen.
+- `AI verbessern` auf Detailseite von fragilen inkrementellen Tool-Edits auf stabilen Voll-Recompose umstellen.
+
+Scope:
+- Neues initiales AI-Create Template:
+  - Title
+  - Impact
+  - Timeline
+  - Investigation
+  - Resolution
+  - Follow-ups
+- Platzhalter fuer fehlende Infos (`Noch zu ergaenzen`) statt Halluzinationen.
+- Timeline-Events als Liste mit deutschem Zeitformat (`D.M.YYYY HH:mm`).
+- `started_at` default auf aktuelle Zeit bei fehlender Extraktion; im Sheet editierbar in DE-24h-Format.
+- `AI verbessern` ersetzt das gesamte Dokument atomar (keine doppelten Parallelstrukturen).
+- Editor-Flaeche bei langem Content visuell konsistent halten (kein Hintergrund-Bruch zwischen Container und Editor).
+
+Implementierungsschritte:
+1. PRD-Update fuer Template + Recompose-Verhalten verankern.
+2. AI-Create Dokument-Composer in `app/dashboard/incidents/ai-actions.ts` auf neue Struktur umstellen.
+3. Recompose-Server-Action bauen:
+   - Eingabe: aktueller Dokumentinhalt
+   - LLM-Aufruf via Vercel AI SDK
+   - deterministic BlockNote-Blockaufbau im Zieltemplate
+4. `AI verbessern` Button auf neue Action umhaengen (full replace + persist + Statusfeedback).
+5. Date/Time Parsing-Hardening fuer Started-At Eingabe und Anzeige.
+6. Editor-Surface CSS fuer lange Dokumente anpassen.
+
+Acceptance Criteria:
+- AI-Create erzeugt immer das neue Template (keine alte `Incident Intake` Struktur).
+- Bei fehlenden Daten erscheinen Platzhalter statt erfundener Fakten.
+- `AI verbessern` erzeugt genau eine konsistente Zielstruktur ohne Duplikate.
+- Nach `AI verbessern` ist der neue Stand gespeichert und bleibt nach Reload identisch.
+- Kein unnoetiger Modal-Overflow im AI-Create-Sheet bei normalem Inhalt.
+- Editor-Hintergrund bleibt bei Scroll/Overflow konsistent.
+
+Tests:
+- `bun run lint`
+- `bunx tsc --noEmit`
+- Manuelle Flows:
+  - AI Create mit/ohne Zeitangaben
+  - AI Improve nach manuellen Text-Ergaenzungen unter falschen Sections
+  - Reload-Persistenz + Badge/Status Feedback
+
+Delivery Notes:
+- Reworked AI-create initial document composer in `app/dashboard/incidents/ai-actions.ts` to the new fixed template:
+  - `Title`, `Impact`, `Timeline`, `Investigation`, `Resolution`, `Follow-ups`
+  - `started_at` defaults to now when not extracted
+  - timeline seeded with start/report events in German datetime format
+- Added reusable template builder in `lib/incidents/document-template.ts`.
+- Replaced fragile AI-improve button flow with full-document recompose:
+  - server action `improveIncidentDocumentAction` in `app/dashboard/incidents/[id]/actions.ts`
+  - local-LLM recompose helper in `lib/incidents/ai-document-recompose.ts` (text output + section parser + fallbacks)
+  - atomic editor replacement in `components/incidents/incident-document-editor.tsx`
+- Hardened AI-create datetime parsing/display in `components/incidents/ai-create-incident-sheet.tsx`:
+  - stricter ISO ingestion
+  - German `DD.MM.YYYY, HH:mm` input handling
+- Improved editor container/background consistency for overflow in `components/incidents/incident-document-editor.tsx` and `app/globals.css`.
+- Checks run:
+  - `bun run lint` (pass, one pre-existing warning in `components/component-example.tsx`)
+  - `bunx tsc --noEmit` (pass)
+  - `bun run build` (pass)
+
+Open Questions:
+- Falls lokales Modell bei Recompose weiterhin instabil ist: in Phase 1 ein Modell-Upgrade + AI-Revalidierung umsetzen.
+
+## P0-11 End-to-End Hardening + Demo QA
 
 Status: TODO  
-Branch: `feat/p0-10-phase0-hardening`  
-Depends On: P0-04..P0-09  
+Branch: `feat/p0-11-phase0-hardening`  
+Depends On: P0-04..P0-10  
 Tags: `qa`, `hardening`, `demo`, `stability`
 
 Ziel:
-- Demo-stabile Gesamtfunktion fuer Phase 0 herstellen.
+- Demo-stabile Gesamtfunktion fuer Phase 0 fuer Core-Produkt herstellen (ohne AI-Qualitaetsnachweis).
 
 Scope:
-- End-to-End Durchlaeufe aller Muss-Features.
+- End-to-End Durchlaeufe aller nicht-AI Muss-Features.
 - Fehlertexte, Loading States, Empty States verbessern.
 - Kleine UX-Politur ohne Scope-Expansion.
+- Architektur-Basis haerten (Datenfluss, Guards, Error-Boundaries, State-Konsistenz).
 - Dokumentation finalisieren.
+- AI-Funktionalitaet in diesem Feature explizit ausklammern.
 
 Implementierungsschritte:
 1. Test-Matrix fuer Kernflows durchlaufen:
    - Login/Redirect
    - Rollenwechsel/Admin
    - Incident manual create/list/detail
-   - AI create follow-up
-   - AI improve accept/reject
 2. Offene Defekte priorisieren und fixen.
 3. Demo-Readiness Checkliste ausfuellen.
 4. Finalen Status aller Feature-Cards auf `DONE` bringen oder Restpunkte markieren.
 
 Acceptance Criteria:
-- Kein blocker/critical Defekt in Must-have Flows.
+- Kein blocker/critical Defekt in Core-Must-have Flows (ohne AI-Qualitaetskriterien).
 - Dokumentierte Known Issues fuer verbleibende Minor-Punkte.
+- Architektur-Checks fuer Core-Flows dokumentiert (inkl. nicht-AI Failure-Handling).
 - Phase-0 Demo reproduzierbar.
 
 Tests:
-- Vollstaendige manuelle E2E-Pruefung.
+- Vollstaendige manuelle E2E-Pruefung fuer nicht-AI Kernflows.
 - Lint + Build.
 
 Delivery Notes:
@@ -600,7 +677,8 @@ Wenn ein User nur grob formuliert, so zuordnen:
 - "Detailseite/Editor" -> P0-07
 - "AI Incident aus Text" -> P0-08
 - "AI verbessert Doku" -> P0-09
-- "Demo stabilisieren" -> P0-10
+- "AI Doku neu strukturieren" -> P0-10
+- "Demo stabilisieren" -> P0-11
 
 ## 9. Promptvorlagen fuer Agent-Dispatch
 

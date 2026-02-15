@@ -46,3 +46,11 @@ Regeln:
 - Entscheidung: Standard-Workflow angepasst: Feature-Branches nach Abschluss nicht automatisch loeschen; Cleanup nur auf expliziten User-Wunsch.
 - Ergebnis: Agent-Flow ist robuster gegen Runner-Policy-Restriktionen und Merge/Push bleibt unblockiert.
 - Risiko/Follow-up: Spaeter optional dedizierten Cleanup-Step einfuehren, sobald Policy/Allowlist fuer Branch-Delete stabil konfiguriert ist.
+
+### 2026-02-15 - AI-Recompose Qualitaet: Modellgrenze lokal
+- Branch: `feat/p0-10-ai-doc-recompose`
+- Commit: `working-tree`
+- Kontext: `AI verbessern` war technisch integriert, lieferte mit lokalem 3B-Modell aber oft nur Platzhalter/Spiegelung statt sinnvoller Neu-Strukturierung.
+- Entscheidung: Recompose-Flow robuster gemacht (parser/fallback/section-handling), aber gleichzeitig klar als Modellqualitaets-Limit dokumentiert.
+- Ergebnis: Verhalten wurde verbessert, bleibt jedoch fuer hochwertige Incident-Refinements mit lokalem Modell limitiert.
+- Risiko/Follow-up: Phase 1 muss Modell-Upgrade + komplette Revalidierung aller AI-Features enthalten (Create, Improve/Recompose, Prompting/Fallbacks).

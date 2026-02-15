@@ -6,6 +6,11 @@ import { canWriteIncidents } from "@/lib/auth/roles";
 import { requireAuthenticatedUser } from "@/lib/auth/session";
 import { extractIncidentFromText } from "@/lib/incidents/ai-intake";
 import { createIncidentWithDocument } from "@/lib/incidents/create";
+import {
+  buildIncidentTemplateBlocks,
+  DOCUMENT_PLACEHOLDER,
+  formatTimelineDateTime,
+} from "@/lib/incidents/document-template";
 import type { Database } from "@/lib/supabase/database.types";
 
 type IncidentSeverity = Database["public"]["Enums"]["incident_severity"];
@@ -98,17 +103,6 @@ function parseStartedAt(rawValue: string | undefined) {
   return parsedDate;
 }
 
-function formatDocumentDateTime(value: Date | undefined) {
-  if (!value) {
-    return "nicht angegeben";
-  }
-
-  return new Intl.DateTimeFormat("de-DE", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(value);
-}
-
 function clipSourceText(sourceText: string) {
   const normalizedText = sourceText.trim();
 
@@ -123,43 +117,26 @@ function buildInitialDocumentContent(params: {
   title: string;
   severity: IncidentSeverity;
   impact: string | null;
-  startedAt?: Date;
+  startedAt: Date;
   sourceText: string;
 }) {
-  const startedAtText = formatDocumentDateTime(params.startedAt);
-  const impactText = params.impact ?? "nicht angegeben";
+  const impactText = params.impact ?? DOCUMENT_PLACEHOLDER;
   const clippedSource = clipSourceText(params.sourceText);
-
-  return [
-    {
-      type: "heading",
-      content: "Incident Intake (AI Draft)",
-    },
-    {
-      type: "paragraph",
-      content: `Titel: ${params.title}`,
-    },
-    {
-      type: "paragraph",
-      content: `Severity: ${params.severity}`,
-    },
-    {
-      type: "paragraph",
-      content: `Startzeit: ${startedAtText}`,
-    },
-    {
-      type: "paragraph",
-      content: `Impact: ${impactText}`,
-    },
-    {
-      type: "heading",
-      content: "Eingangstext",
-    },
-    {
-      type: "paragraph",
-      content: clippedSource,
-    },
+  const reportTime = new Date();
+  const timelineEvents = [
+    `${formatTimelineDateTime(params.startedAt)} - Incident gestartet`,
+    `${formatTimelineDateTime(reportTime)} - Report aufgenommen`,
   ];
+
+  return buildIncidentTemplateBlocks({
+    title: `${params.title} (${params.severity})`,
+    userStatement: clippedSource,
+    impact: impactText,
+    timelineEvents,
+    investigationItems: [DOCUMENT_PLACEHOLDER],
+    resolutionItems: [DOCUMENT_PLACEHOLDER],
+    followUpItems: [DOCUMENT_PLACEHOLDER],
+  });
 }
 
 export async function analyzeIncidentIntakeAction(input: {
@@ -205,7 +182,7 @@ export async function createAiIncidentAction(input: {
     const title = parseTitle(input.title);
     const severity = parseSeverity(input.severity);
     const impact = parseImpact(input.impact);
-    const startedAt = parseStartedAt(input.startedAt);
+    const startedAt = parseStartedAt(input.startedAt) ?? new Date();
 
     const initialDocumentContent = buildInitialDocumentContent({
       title,

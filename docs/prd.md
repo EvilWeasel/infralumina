@@ -56,6 +56,7 @@ Muss enthalten:
 
    * “AI Create Incident from Text” (mit Follow-up bei fehlenden Pflichtdaten)
    * “AI Improve Document” Mit BlockNote AI integration über `@blocknote/xl-ai`
+   * “AI Recompose Incident Document” als stabiler Voll-Neuaufbau in Ziel-Template
 6. **Admin Page**: Rollen verwalten
 
 **Explizit nicht in Phase 0:**
@@ -292,7 +293,7 @@ Ziel: Aus E-Mail / Slack Paste / Freitext **einen Incident anlegen**. Wenn Infor
   * entweder: direkt “Create Incident” wenn alle required db-fields extrahiert werden konnten
   * oder: Follow-up Prompt wo explizit nach fehlenden Feldern gefragt wird (frage nach allen fehlenden feldern, aber gibt dem user feedback welche required sind und welche optional)
     * Erneute Analyze.
-  * Nach erfolgreichem "Create Incident", weiterleitung auf Detailseite mit Blocknote Dokument. Vorhandene Informationen aus vorherigen User-Prompts nutzen um den Incident-Report mit Inhalt zu füllen - Tool-Call Blocknote AI
+  * Nach erfolgreichem "Create Incident", weiterleitung auf Detailseite mit initialem Incident-Dokument im Ziel-Template
 
 ### Pflichtdaten für Incident Creation (Phase 0)
 
@@ -355,61 +356,73 @@ AI liefert zwei mögliche Ergebnisse:
 
 Nach `Create Incident`:
 
-1. Incident + leeres `incident_document` persistieren
+1. Incident + initiales `incident_document` persistieren
 2. Zur Detailseite navigieren
-3. Im Editor einen AI-Command ausführen, der aus dem bisherigen Input einen ersten Report-Draft erzeugt
+3. Dokument ist sofort im Incident-Template vorbefuellt, fehlende Inhalte mit Platzhaltern markiert
 
-Damit bleiben DB-Felder deterministisch, während die Dokumenterstellung frei und editor-nah erfolgt.
+Damit bleiben DB-Felder deterministisch und das Startdokument konsistent.
+
+### Incident-Dokument Template (AI Create Default)
+
+Das initiale Dokument aus AI Create folgt dieser Struktur:
+
+1. **Title**
+   * Enthält Incident-Titel und kurze Problembeschreibung aus dem User-Text
+2. **Impact**
+   * Auswirkungen aus dem Input; bei fehlenden Daten Platzhalter
+3. **Timeline**
+   * Liste extrahierter Timeline-Events (mindestens Incident Start / Report-Zeit)
+   * Zeitformat: `15.2.2026 23:19`
+4. **Investigation**
+   * Erste Analyse-/Untersuchungsschritte und Findings
+5. **Resolution**
+   * Mitigation-/Resolution-Schritte
+6. **Follow-ups**
+   * Offene Folgeaufgaben
+
+Regeln:
+* Fehlende Informationen mit `Noch zu ergänzen` markieren.
+* Keine Fakten erfinden.
+* `started_at` bleibt editierbar, defaultet bei fehlender Extraktion auf aktuelle Zeit.
+* UI-Datumsformat ist Deutsch inkl. 24h-Zeit.
 
 ---
 
-## 7.2 AI Improve Incident Document (Native BlockNote AI)
+## 7.2 AI Improve Incident Document (Template Recompose)
 
-Ziel: Aus unstrukturiertem Text im BlockNote-Editor ein besser strukturiertes Incident-Dokument machen, ohne eigenes Composer-Schema.
+Ziel: Aus bestehendem, ggf. unstrukturiertem Editor-Inhalt ein konsistentes Incident-Dokument im Ziel-Template erzeugen.
 
 ### UX Flow
 
-BlockNote `/ai` Action: `AI: Verbessere / Strukturiere Dokument`
+Detailseite Button: `AI verbessern`
 
-1. Client ruft `invokeAI({ userPrompt, useSelection, streamToolsProvider })` auf
-2. Backend streamt via Vercel AI SDK; Modell arbeitet mit BlockNote Tool-Definitions
-3. AIExtension übernimmt Tool-Calls und zeigt den nativen Review-Flow
-4. User entscheidet:
-   * `Accept` → Änderungen übernehmen und speichern
-   * `Reject` → Änderungen verwerfen
+1. Client sendet den aktuellen Dokumentinhalt an den Recompose-Flow.
+2. Backend ruft Modell via Vercel AI SDK auf und extrahiert/normalisiert in das Incident-Template.
+3. Ergebnis ersetzt das aktuelle Dokument als *ein* konsistenter Stand (keine parallelen/duplizierten Templates).
+4. Recompose-Ergebnis wird persistiert und als letzter Dokumentstand angezeigt.
 
-### Persistenz bei Accept/Reject
+### Persistenz
 
-* `Accept`: `incident_documents.content_json` aktualisieren (`updated_at`, `updated_by`)
-* `Reject`: keine Persistierung
-* Phase 1: optional zusätzlich Revisionseintrag pro Accept/Manual Save
+* Nach erfolgreichem Recompose wird `incident_documents.content_json` aktualisiert (`updated_at`, `updated_by`)
+* Phase 1: optional Revisionseintrag pro Recompose/Manual Save
 
-### Operationskontrolle pro Command
+### Zielstruktur fuer Recompose
 
-Für Sicherheit/UX kann je Command eingeschränkt werden:
+Template ist fuer `AI verbessern` **verbindlich**:
 
-* `update only` für reine Umschreibungen
-* `add + update + delete` für strukturelle Reorganisation
-
-Standard für `AI Improve`: `add + update + delete`, damit echte Strukturverbesserungen möglich sind.
-
-### Minimum Template für “Schönes Incident Doc”
-
-Template ist eine **Guideline**, kein starres Schema.  
-Für `AI Create` und `AI Improve` soll diese Zielstruktur angestrebt werden; fehlende Informationen werden als Platzhalter markiert statt erfunden.
-
-1. **Summary**
+1. **Title**
 2. **Impact**
 3. **Timeline**
 4. **Investigation**
-5. **Mitigation / Resolution**
-6. **Follow-ups / Next steps**
+5. **Resolution**
+6. **Follow-ups**
 
 **Platzhalterregel bei fehlenden Daten:**
 
 * `Unbekannt` oder `Noch zu ergänzen` explizit kennzeichnen
 * Keine fiktiven Zeiten, Systeme oder Ursachen erzeugen
-* Timeline-Einträge nur anlegen, wenn aus Input ableitbar; sonst leere Timeline-Sektion mit Hinweis
+* Timeline-Einträge nur anlegen, wenn aus Input ableitbar; sonst Platzhalter in der Timeline-Sektion
+* Recompose darf keine zweite Parallelstruktur erzeugen und keine Inhalte blind duplizieren
 
 ---
 
@@ -428,7 +441,7 @@ Am Ende von 2 Tagen:
 * Incident create sheet (minimal)
 * Incident detail page mit editor-first Layout, collapsible Meta und BlockNote Auto-save
 * AI Create incident from paste (mit Missing field follow-ups)
-* AI Improve document mit nativer BlockNote AI (`@blocknote/xl-ai`) inkl. Accept/Reject
+* AI Improve document als stabiler Template-Recompose ohne Duplikate
 
 ## Nice-to-have (nur wenn Zeit)
 
@@ -467,12 +480,48 @@ Am Ende von 2 Tagen:
 * Phase 1: full-text search
 * Phase 2: embeddings + semantic similarity
 
+## 9.6 AI Model Capability Upgrade
+
+Ziel in Phase 1: AI-Features von lokalem Experiment-Setup auf leistungsfaehigere Modelle mit stabileren Capabilities bringen.
+
+* Mehrere Provider/Modelle konfigurierbar machen (lokal + Cloud), ohne Feature-Code umzubauen.
+* Capability-Matrix einfuehren (Structured Output, Tool-Calling, Context-Laenge, Latenz).
+* Routing/Fallback definieren:
+  * bevorzugtes Modell pro AI-Feature
+  * Fallback bei Timeouts/invalid output
+* Secrets/Provider-Konfiguration fuer Cloud-Betrieb sauber trennen (lokal vs. deployed).
+
+## 9.7 AI Feature Revalidation + Refactor
+
+Nach Modell-Upgrade werden alle bestehenden AI-Features systematisch neu geprueft und bei Bedarf ueberarbeitet:
+
+* `AI Create Incident from Text`
+  * Extraktionsqualitaet, Missing-Field Follow-up, Started-At Parsing
+* `AI Improve / Recompose Document`
+  * Strukturtreue, keine Duplikate, sinnvolle Uebernahme neuer Findings
+* Prompting/Parser/Fallback-Strategien auf Basis der neuen Modelle nachziehen.
+* Regression-Tests mit Fixture-Corpus erweitern.
+
+Abschlusskriterium:
+* Alle Phase-0 AI-Flows sind mit den neuen Modellen reproduzierbar stabil und dokumentiert.
+
+## 9.8 Cloud Agent Delivery (Phase-1 Abschluss)
+
+Letztes Feature in Phase 1 wird bewusst in einer Cloud-Agent-Umgebung umgesetzt, in der lokale Modelle nicht verfuegbar sind.
+
+* Ziel: Verifizieren, dass das Projekt auch mit cloudbasiertem Agent-Workflow sauber weiterentwickelbar ist.
+* Fokus:
+  * reproduzierbarer Plan-/Branch-/PR-Flow in der Cloud
+  * saubere Uebergabe zwischen lokalen und Cloud-Agent-Laeufen
+  * AI-Features gegen Cloud-Modelle validieren
+
 ---
 
 # 10. Offene Risiken / Hinweise
 
 * BlockNote ist client-only: Detailseiten sind client-lastiger. Für Phase 0 ok.
 * AI: lokaler 3B Modell-Server muss Tool-Calling und strukturierte Outputs stabil unterstützen; sonst Fallback auf OpenAI-kompatiblen Cloud-Provider.
+* Lokale kleine Modelle koennen bei Recompose/Refinement trotz korrekter Integration qualitativ unzureichend sein; Phase 1 Modell-Upgrade ist eingeplant.
 * AI-Feldextraktion kann trotz Schema unvollständig sein: Follow-up Flow bleibt Pflicht.
 * BlockNote AI (`@blocknote/xl-ai`) ist XL/dual-lizenziert (u. a. GPL/Commercial). Lizenzentscheidung muss vor produktiver Nutzung geklärt sein.
 * Ohne RLS: Demo ok, aber später geg. nachrüsten (Security/Compliance).
