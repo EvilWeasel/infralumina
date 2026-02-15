@@ -11,6 +11,10 @@ const localProvider = createOpenAICompatible({
 });
 
 export function getStructuredOutputModel() {
+  return getDefaultAiModel();
+}
+
+export function getDefaultAiModel() {
   const modelName = process.env.LOCAL_LLM_MODEL ?? defaultLocalModel;
   return localProvider(modelName);
 }

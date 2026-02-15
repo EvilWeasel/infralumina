@@ -85,6 +85,10 @@ function parseStartedAt(rawValue: string | undefined) {
     return undefined;
   }
 
+  if (!/^\d{4}-\d{2}-\d{2}/.test(value)) {
+    throw new Error("Started At ist ungueltig.");
+  }
+
   const parsedDate = new Date(value);
 
   if (Number.isNaN(parsedDate.getTime())) {
@@ -92,6 +96,17 @@ function parseStartedAt(rawValue: string | undefined) {
   }
 
   return parsedDate;
+}
+
+function formatDocumentDateTime(value: Date | undefined) {
+  if (!value) {
+    return "nicht angegeben";
+  }
+
+  return new Intl.DateTimeFormat("de-DE", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(value);
 }
 
 function clipSourceText(sourceText: string) {
@@ -111,7 +126,7 @@ function buildInitialDocumentContent(params: {
   startedAt?: Date;
   sourceText: string;
 }) {
-  const startedAtText = params.startedAt?.toISOString() ?? "nicht angegeben";
+  const startedAtText = formatDocumentDateTime(params.startedAt);
   const impactText = params.impact ?? "nicht angegeben";
   const clippedSource = clipSourceText(params.sourceText);
 

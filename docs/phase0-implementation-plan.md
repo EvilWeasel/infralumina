@@ -59,7 +59,7 @@ Jeder Agent arbeitet immer so:
 | P0-06 | Manual Incident Create (Sheet + Persistenz) | `feat/p0-06-incident-manual-create` | P0-05 | DONE |
 | P0-07 | Incident Detail + Meta-Update + Dokument Save | `feat/p0-07-incident-detail-editor-save` | P0-06 | DONE |
 | P0-08 | AI Create Incident from Text (Follow-up) | `feat/p0-08-ai-create-incident` | P0-06 | DONE |
-| P0-09 | AI Improve Document (BlockNote AI) | `feat/p0-09-ai-improve-document` | P0-07 | TODO |
+| P0-09 | AI Improve Document (BlockNote AI) | `feat/p0-09-ai-improve-document` | P0-07 | DONE |
 | P0-10 | End-to-End Hardening + Demo QA | `feat/p0-10-phase0-hardening` | P0-04..P0-09 | TODO |
 
 ## 5.1 Parallelisierungs-Lanes (fuer mehrere Agents)
@@ -488,7 +488,7 @@ Open Questions:
 
 ## P0-09 AI Improve Document (BlockNote AI)
 
-Status: TODO  
+Status: DONE  
 Branch: `feat/p0-09-ai-improve-document`  
 Depends On: P0-07  
 Tags: `ai`, `blocknote`, `editor`, `accept-reject`
@@ -522,10 +522,20 @@ Tests:
 - Lint + Build.
 
 Delivery Notes:
-- -
+- Added BlockNote AI dependency `@blocknote/xl-ai` and configured local provider usage via Vercel AI SDK in `lib/ai/provider.ts`.
+- Added streaming AI transport route for BlockNote in `app/api/ai/blocknote/route.ts` (Node runtime, auth + role check, system prompt for incident-doc quality).
+- Wired incident detail editor to native BlockNote AI with `AI verbessern` action in `components/incidents/incident-document-editor.tsx`.
+- Added client-only dynamic wrapper to avoid SSR/runtime issues for BlockNote editor in `components/incidents/incident-document-editor-client.tsx`.
+- Switched detail page to client-wrapper usage and harmonized editor shell styling in `app/dashboard/incidents/[id]/page.tsx` and `app/globals.css`.
+- Stabilized autosave/AI interaction to avoid save-vs-stream races in `components/incidents/incident-document-editor.tsx`.
+- Improved AI-create date handling and localization:
+  - stricter `started_at` normalization in `lib/incidents/ai-intake.ts`
+  - stricter started-at parsing + localized initial doc rendering in `app/dashboard/incidents/ai-actions.ts`
+  - German datetime input polish in `components/incidents/ai-create-incident-sheet.tsx`
+- Checks run: `bun run lint` (passes, one pre-existing warning), `bunx tsc --noEmit` (passes), `bun run build` (passes).
 
 Open Questions:
-- -
+- Lokales LLM-Tool-Calling kann bei komplexen Dokumenten weiterhin instabil sein (modellbedingt). Fuer P0-10: Fallback/Retry-Strategie fuer AI-Improve-Fehler UX klar definieren.
 
 ## P0-10 End-to-End Hardening + Demo QA
 

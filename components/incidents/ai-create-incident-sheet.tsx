@@ -380,6 +380,7 @@ export function AiCreateIncidentSheet({ disabled }: { disabled?: boolean }) {
                         id="ai-started-at"
                         type="text"
                         inputMode="numeric"
+                        autoComplete="off"
                         value={draft.startedAt}
                         onChange={(event) =>
                           setDraft((previousDraft) => ({
@@ -387,7 +388,7 @@ export function AiCreateIncidentSheet({ disabled }: { disabled?: boolean }) {
                             startedAt: event.target.value,
                           }))
                         }
-                        placeholder="TT.MM.JJJJ, HH:MM"
+                        placeholder="TT.MM.JJJJ, HH:mm"
                         className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-ring"
                       />
                     </div>
