@@ -51,12 +51,12 @@ Jeder Agent arbeitet immer so:
 
 | ID | Feature | Branch | Depends On | Status |
 | --- | --- | --- | --- | --- |
-| P0-01 | Datenbasis + Rollenmodell + Auth-Basis | `feat/p0-01-data-auth-roles` | - | TODO |
-| P0-02 | Public Landing + Login + Redirects | `feat/p0-02-landing-login-redirect` | P0-01 | TODO |
-| P0-03 | Dashboard Shell + Sidebar + Navigation | `feat/p0-03-dashboard-shell-sidebar` | P0-02 | TODO |
-| P0-04 | Rollen-Guards + Admin User Management | `feat/p0-04-admin-role-management` | P0-01, P0-03 | TODO |
-| P0-05 | Incident Liste (Tabelle + Navigation) | `feat/p0-05-incidents-list` | P0-01, P0-03 | TODO |
-| P0-06 | Manual Incident Create (Sheet + Persistenz) | `feat/p0-06-incident-manual-create` | P0-05 | TODO |
+| P0-01 | Datenbasis + Rollenmodell + Auth-Basis | `feat/p0-01-data-auth-roles` | - | DONE |
+| P0-02 | Public Landing + Login + Redirects | `feat/p0-02-landing-login-redirect` | P0-01 | DONE |
+| P0-03 | Dashboard Shell + Sidebar + Navigation | `feat/p0-03-dashboard-shell-sidebar` | P0-02 | DONE |
+| P0-04 | Rollen-Guards + Admin User Management | `feat/p0-04-admin-role-management` | P0-01, P0-03 | DONE |
+| P0-05 | Incident Liste (Tabelle + Navigation) | `feat/p0-05-incidents-list` | P0-01, P0-03 | DONE |
+| P0-06 | Manual Incident Create (Sheet + Persistenz) | `feat/p0-06-incident-manual-create` | P0-05 | DONE |
 | P0-07 | Incident Detail + Meta-Update + Dokument Save | `feat/p0-07-incident-detail-editor-save` | P0-06 | TODO |
 | P0-08 | AI Create Incident from Text (Follow-up) | `feat/p0-08-ai-create-incident` | P0-06 | TODO |
 | P0-09 | AI Improve Document (BlockNote AI) | `feat/p0-09-ai-improve-document` | P0-07 | TODO |
@@ -96,7 +96,7 @@ Finish:
 
 ## P0-01 Datenbasis + Rollenmodell + Auth-Basis
 
-Status: TODO  
+Status: DONE  
 Branch: `feat/p0-01-data-auth-roles`  
 Depends On: -  
 Tags: `db`, `supabase`, `drizzle`, `auth`, `roles`
@@ -132,14 +132,26 @@ Update bei Abschluss:
 - Migrationsdateien + relevante Module im Abschnitt `Delivery Notes` eintragen.
 
 Delivery Notes:
-- -
+- Added Supabase and Drizzle dependencies in `package.json`.
+- Added environment template in `.env.example`.
+- Added SQL migration in `supabase/migrations/202602150001_phase0_foundation.sql`.
+- Added Drizzle schema/config in `lib/db/schema.ts` and `drizzle.config.ts`.
+- Added auth/session helpers in `lib/auth/session.ts` and `lib/auth/roles.ts`.
+- Added Supabase clients in `lib/supabase/*`.
+- Added OAuth callback route in `app/auth/callback/route.ts`.
+- Added setup/bootstrap guide in `docs/setup-supabase.md`.
+- Applied migrations directly on Supabase via MCP:
+  - `phase0_foundation`
+  - `phase0_foundation_hardening`
+- Updated code/docs to use `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` with fallback to legacy anon key.
+- Checks run: `npm run lint` (passes, one pre-existing warning), `npm run build` (passes).
 
 Open Questions:
 - -
 
 ## P0-02 Public Landing + Login + Redirects
 
-Status: TODO  
+Status: DONE  
 Branch: `feat/p0-02-landing-login-redirect`  
 Depends On: P0-01  
 Tags: `landing`, `auth`, `redirect`, `public`
@@ -168,14 +180,23 @@ Tests:
 - Lint + Build.
 
 Delivery Notes:
-- -
+- Replaced root page filler with real public landing in `app/page.tsx`.
+- Added GitHub OAuth CTA wired to server action `signInWithGitHub("/dashboard/incidents")`.
+- Added authenticated redirect from `/` to `/dashboard/incidents`.
+- Added minimal auth error state for callback failures (`auth_error` query param).
+- Added protected placeholder route `app/dashboard/incidents/page.tsx` as redirect target for login validation.
+- Updated app metadata/lang in `app/layout.tsx` (`Infralumina`, `de`).
+- Switched font setup to local/system-safe fallback to avoid external font fetch dependency in CI/sandbox.
+- Fixed anonymous session handling so missing auth session does not throw on `/` (`Auth session missing` now resolves to unauthenticated state).
+- Added global `next-themes` provider with default dark mode and light-mode support.
+- Checks run: `npm run lint` (passes, one pre-existing warning), `npx next build --webpack` (passes).
 
 Open Questions:
 - -
 
 ## P0-03 Dashboard Shell + Sidebar + Navigation
 
-Status: TODO  
+Status: DONE  
 Branch: `feat/p0-03-dashboard-shell-sidebar`  
 Depends On: P0-02  
 Tags: `layout`, `sidebar`, `dashboard`, `navigation`
@@ -187,13 +208,15 @@ Scope:
 - Collapsible Sidebar links.
 - Navigationspunkte mindestens fuer Incidents und Admin (Admin ggf. role-based sichtbar).
 - Footer-Bereich mit User-Info + Logout.
+- Theme toggle im Sidebar-Footer (light/dark, optional system) als UX-Polish.
 - Main Content mit lesbarer max-width.
 
 Implementierungsschritte:
 1. Dashboard Layout unter `app/dashboard/...` strukturieren.
 2. Sidebar-Komponente mit collapse state bauen.
 3. Navigation und aktive Route visuell kennzeichnen.
-4. Content-Container mit Breitenlimit implementieren.
+4. Theme toggle in Sidebar integrieren (auf `next-themes` aufbauen).
+5. Content-Container mit Breitenlimit implementieren.
 
 Acceptance Criteria:
 - Alle Dashboard-Seiten nutzen die Shell.
@@ -205,14 +228,22 @@ Tests:
 - Lint + Build.
 
 Delivery Notes:
-- -
+- Added shared authenticated dashboard layout in `app/dashboard/layout.tsx`.
+- Implemented responsive/collapsible sidebar shell in `components/dashboard/dashboard-shell.tsx`.
+- Added sectioned navigation (`ITSM`, `Knowledge`) with active route styling.
+- Added footer with user label, role, logout action, and theme toggle.
+- Added theme toggle component in `components/dashboard/theme-toggle.tsx` (built on `next-themes`).
+- Reworked footer into user dropdown with GitHub avatar, role context, logout, and account-switch action.
+- Added admin placeholder route in `app/dashboard/admin/page.tsx` (admin-only access via `requireRole(\"admin\")`).
+- Updated incidents page to render inside the shared shell in `app/dashboard/incidents/page.tsx`.
+- Checks run: `npm run lint` (passes, one pre-existing warning), `npm run build` (passes), `npx next build --webpack` (passes).
 
 Open Questions:
-- -
+- Chrome DevTools MCP timed out in this session, so visual verification needs manual confirmation in browser.
 
 ## P0-04 Rollen-Guards + Admin User Management
 
-Status: TODO  
+Status: DONE  
 Branch: `feat/p0-04-admin-role-management`  
 Depends On: P0-01, P0-03  
 Tags: `rbac`, `admin`, `guards`, `user-management`
@@ -242,14 +273,19 @@ Tests:
 - Lint + Build.
 
 Delivery Notes:
-- -
+- Kept reusable role guard primitives in `lib/auth/roles.ts` and `lib/auth/session.ts`.
+- Enforced admin-only access on `/dashboard/admin` with role-based checks.
+- Added server action for role mutation in `app/dashboard/admin/actions.ts`.
+- Replaced admin placeholder with functional user role table in `app/dashboard/admin/page.tsx`.
+- Added per-row role dropdown + save flow, backed by server-side authorization.
+- Checks run: `npm run lint` (passes, one pre-existing warning), `npx next build --webpack` (passes).
 
 Open Questions:
-- -
+- `npm run build` (Turbopack) can fail in restricted sandbox environments with process/port permission errors; webpack build succeeds.
 
 ## P0-05 Incident Liste (Tabelle + Navigation)
 
-Status: TODO  
+Status: DONE  
 Branch: `feat/p0-05-incidents-list`  
 Depends On: P0-01, P0-03  
 Tags: `incidents`, `table`, `list`, `routing`
@@ -279,14 +315,22 @@ Tests:
 - Lint + Build.
 
 Delivery Notes:
-- -
+- Implemented live incidents data query in `app/dashboard/incidents/page.tsx`.
+- Added incidents table with required columns:
+  - Title, Status, Severity, Started, Resolved, Reporter, Updated
+- Added badge styling for status/severity and date formatting for timestamp columns.
+- Added row navigation behavior (each row cell links) to `/dashboard/incidents/[id]`.
+- Added empty-state UI for zero incidents.
+- Added placeholder detail route in `app/dashboard/incidents/[id]/page.tsx` so navigation is functional ahead of P0-07.
+- Added staged header actions (`New Incident`, `AI Create`) as disabled controls for upcoming P0-06/P0-08.
+- Checks run: `npm run lint` (passes, one pre-existing warning), `npx next build --webpack` (passes).
 
 Open Questions:
-- -
+- `npm run build` (Turbopack) can fail in restricted sandbox environments with process/port permission errors; webpack build succeeds.
 
 ## P0-06 Manual Incident Create (Sheet + Persistenz)
 
-Status: TODO  
+Status: DONE  
 Branch: `feat/p0-06-incident-manual-create`  
 Depends On: P0-05  
 Tags: `incidents`, `create`, `sheet`, `server-action`
@@ -318,10 +362,19 @@ Tests:
 - Lint + Build.
 
 Delivery Notes:
-- -
+- Added server action for manual incident creation in `app/dashboard/incidents/actions.ts`.
+- Enforced server-side write authorization (operator/admin) before create.
+- Implemented atomic insert using Drizzle transaction:
+  - insert `incidents`
+  - insert initial `incident_documents`
+- Added right-side create sheet UI in `components/incidents/new-incident-sheet.tsx`.
+- Wired `New Incident` control in incidents page for writable roles only.
+- Kept `AI Create` as staged control for upcoming P0-08.
+- Added DB URL normalization for malformed `%` sequences in `lib/env.ts` to prevent `URI malformed` during incident create.
+- Checks run: `npm run lint` (passes, one pre-existing warning), `npx next build --webpack` (passes).
 
 Open Questions:
-- -
+- `npm run build` (Turbopack) can fail in restricted sandbox environments with process/port permission errors; webpack build succeeds.
 
 ## P0-07 Incident Detail + Meta-Update + Dokument Save
 
