@@ -2,12 +2,10 @@
 
 ### 0. Meta
 
-* **Stack:** Next.js (App Router), Tailwind, shadcn/ui, BlockNote, Supabase (Auth+DB), Drizzle ORM, Vercel AI SDK, lokaler llama-server (OpenAI-kompatibel)
-* **Konventionen:** **Server Actions bevorzugt**, keine klassischen API-Routen, intern (Performance/Caching sekundär)
+* **Stack:** Next.js (App Router), Tailwind, shadcn/ui, BlockNote, Supabase (Auth+DB), Drizzle ORM, Vercel AI SDK, lokaler llama-server (OpenAI-kompatibel) für lokalen Prototyp mit späterem wechsel auf OpenAI-API oder anderer Cloud-Provider
+* **Konventionen:** **Server Actions bevorzugt**, keine klassischen API-Routen, intern (Performance/Caching sekundär), Modularer, Wartbarer Code, Bevorzugt Funktionale Patterns, Composition
 * **Auth:** GitHub OAuth only
-* **Sprachen:** UI Deutsch oder Englisch je nach Firmenkultur (MVP: Englisch ist oft “neutral”; kann später i18n bekommen)
-
-  > **[Ergänzung / Empfehlung]**: Für Demo kann Englisch wirken “produktreifer”; wenn dein Team deutsch arbeitet, deutsch.
+* **Sprachen:** UI Deutsch, Code Englisch, Projekt-Dokumentation Deutsch, Code-Dokumentation und Kommentare Englisch
 
 ---
 
@@ -57,7 +55,7 @@ Muss enthalten:
 5. **AI Features**:
 
    * “AI Create Incident from Text” (mit Follow-up bei fehlenden Pflichtdaten)
-   * “AI Improve Incident Document” (BlockNote JSON Draft + Preview + Accept/Reject)
+   * “AI Improve Document” Mit BlockNote AI integration über `@blocknote/xl-ai`
 6. **Admin Page**: Rollen verwalten
 
 **Explizit nicht in Phase 0:**
@@ -75,9 +73,9 @@ Muss enthalten:
 * System Inventory / Mini-CMDB + Verlinkung aus Incidents
 * Revisionen + Admin Revert
 * Audit Log (Append-only)
-* Similar Incidents (FTS, später Embeddings)
+* Similar Incidents (FTS, oder besser: Embeddings)
 * Postmortem Generator (aus Incident + Timeline)
-* Optional: Voice-to-Text Intake (für Doku)
+* Voice-to-Text Intake (für Blocknote Document-Edits und "App-Actions" wie neuen incident erstellen)
 
 ---
 
@@ -142,7 +140,7 @@ Rollen:
 
 * First login → `user`
 * Admin Page nur sichtbar/erreichbar für admin
-* Server Actions prüfen Rolle (z. B. Guard function)
+* Server Actions prüfen Rolle (z. B. wiederverwendbare Guard function)
 
 > **[Ergänzung / Empfehlung]**: UI soll Buttons/Sheets ausblenden, aber **Server Actions sind die echte Autorität**.
 
@@ -154,10 +152,10 @@ Rollen:
 
 ### incidents
 
-* `id` uuid
+* `id` uuid - auto
 * `title` text (required)
-* `status` enum: `open | in_progress | resolved`
-* `severity` enum: `low | medium | high | critical`
+* `status` enum: `open | in_progress | resolved` - default open
+* `severity` enum: `low | medium | high | critical` - required
 * `impact` text (optional für manual create; **AI create kann nachfragen**, siehe 7.1)
 * `started_at` timestamp (default now)
 * `resolved_at` timestamp nullable
@@ -190,7 +188,7 @@ Route: `/dashboard/incidents`
 
     * `New Incident` (Sheet)
     * `AI Create` (Sheet)
-* Table (sortable/filter optional, Phase 0 minimal)
+* Data-Table (sortable/filter optional, Phase 0 minimal)
 
 ### Spalten (dein Wunsch: “wichtige Felder sichtbar”)
 
@@ -217,18 +215,18 @@ Button `New Incident` öffnet Sheet rechts.
 Pflichtfelder:
 
 * Title
-  Defaults:
-* Severity = medium
-* Status = open
-* Started_at = now
-  Optional:
+* Severity
+* Status = default open
+* Started_at = default now
+
+Optional:
 * Impact (kurzer Text)
 
 Submit:
 
 * Insert incident
-* Create initial incident_document (leer oder “Template”)
-* Redirect zur Detailseite
+* Create initial incident_document (leer, später mit “Template”)
+* Redirect zur Detailseite mit dem Blocknote Dokument
 
 ---
 
@@ -251,12 +249,10 @@ Route: `/dashboard/incidents/[id]`
 * BlockNote Editor (client-only)
 * Save button (oder Auto-save + “Saved” indicator; Phase 0: Save ist ok)
 
-**AI Panel**
+**Blocknote /ai Menü Integration**
 
-* Button: `AI: Improve Document`
-* (Optional) Button: `AI: Append Notes from Text`
-
-  > **[Ergänzung / Empfehlung]**: Sehr einfaches extra Feature: paste text → AI macht daraus saubere “Actions taken” Abschnitt + Timeline.
+* `AI: Inkludiere von unstrukturiertem Text`
+* `AI: Verbessere / Strukturiere Dokument`
 
 ---
 
@@ -264,7 +260,7 @@ Route: `/dashboard/incidents/[id]`
 
 Route: `/dashboard/admin` (nur admin)
 
-* Table: User (GitHub handle), Role dropdown, Save
+* Data-Table: User (GitHub handle), Role dropdown, Save
 * Optional: search
 
 ---
@@ -273,35 +269,60 @@ Route: `/dashboard/admin` (nur admin)
 
 ## 7.1 AI Create Incident from Text (mit Follow-up)
 
-Ziel: Aus E-Mail / Slack Paste / Freitext **einen Incident anlegen**, aber nur mit minimal notwendigen Feldern. Wenn Informationen fehlen, wird **gezielt nachgefragt**.
+Ziel: Aus E-Mail / Slack Paste / Freitext **einen Incident anlegen**. Wenn Informationen fehlen (für required db-fields), wird **gezielt nachgefragt**.
 
 ### UI Flow
 
+* User ist auf `/dashboard/incidents`
 * Button `AI Create` öffnet Sheet
 * Sheet enthält:
 
-  * Textarea: “Paste email / description”
+  * Textarea: “Füge Beschreibungstext ein”
   * Button: “Analyze”
+  * Spinner zeigt loading state bis response ready
 * Nach Analyze:
 
-  * entweder: direkt “Create Incident”
-  * oder: Follow-up UI mit fehlenden Feldern
+  * entweder: direkt “Create Incident” wenn alle required db-fields extrahiert werden konnten
+  * oder: Follow-up Prompt wo explizit nach fehlenden Feldern gefragt wird (frage nach allen fehlenden feldern, aber gibt dem user feedback welche required sind und welche optional)
+    * Erneute Analyze.
+  * Nach erfolgreichem "Create Incident", weiterleitung auf Detailseite mit Blocknote Dokument. Vorhandene Informationen aus vorherigen User-Prompts nutzen um den Incident-Report mit Inhalt zu füllen - Tool-Call Blocknote AI
 
 ### Pflichtdaten für Incident Creation (Phase 0)
 
-Minimal erforderlich:
+Minimal erforderlich (identisch für Manual Create und AI Create):
 
-* title
-  Alles andere kann defaulten oder optional sein.
+* `title` – muss vorhanden sein
+* `severity` – muss vorhanden sein (AI extrahiert aus Text oder fragt nach)
 
-**ABER** du willst “Impact kann fehlen, aber wenn nötig nachfragen”.
-Hier ist eine sinnvolle Balance:
+Alles andere defaultet oder ist optional:
 
-* `title` muss vorhanden sein (AI oder User)
-* `severity` default medium, aber AI darf empfehlen
-* `impact` optional, **aber** wenn AI “critical/high” erkennt und impact fehlt, fragen wir nach (weil dann wichtig)
+* `status` – default `open`
+* `started_at` – default `now()`
+* `impact` – optional, wird aus AI-Text extrahiert wenn vorhanden
 
-> **[Ergänzung / Empfehlung]**: Conditional requirement: Impact nur “required”, wenn Severity ≥ high.
+**AI Create Mechanik:**
+
+* AI analysiert den Paste/Textarea-Text
+* Versucht `title` und `severity` zu extrahieren
+* Falls eines oder beide fehlen → Follow-up Fragen (explizit nennen, dass diese erforderlich sind)
+* User antwortet → erneute Analyse
+* Sobald beide Pflichtfelder gefüllt sind → "Create" Button aktivieren
+* Optional extrahierte Felder (`impact`, `started_at`) werden mitgenommen, müssen aber nicht vorhanden sein
+
+**Output Schema (Zod):**
+
+```ts
+{
+  title?: string,
+  severity?: "low"|"medium"|"high"|"critical",
+  impact?: string,
+  started_at?: string,
+  missing_fields?: Array<{
+    field: "title" | "severity",
+    question: string
+  }>
+}
+```
 
 ### Follow-up Mechanik
 
@@ -315,8 +336,8 @@ AI liefert zwei mögliche Ergebnisse:
 **B) Missing critical fields → Ask**
 
 * `missing_fields: [...]` mit klaren Fragen
-* UI rendert kleine Form für die Missing Fields (z. B. impact)
-* User füllt aus → Create
+* AI fragt explizit nach fehlenden Informationen für missing fields
+* User gibt in Prompt weitere informationen an
 
 ### Output Schema (Zod)
 
@@ -339,12 +360,13 @@ AI liefert zwei mögliche Ergebnisse:
 ## 7.2 AI Improve Incident Document (BlockNote Draft + Preview + Accept/Reject)
 
 Dein Ziel:
-Aus sloppy Freitext im BlockNote soll AI **ein neues BlockNote-Dokument** generieren, das sauber strukturiert ist — **als Draft**, ohne direkt zu überschreiben.
+Aus sloppy Freitext im BlockNote soll AI **das BlockNote-Dokument** anpassen, sodass es sauber strukturiert ist — preferibly **als Draft**, ohne direkt zu überschreiben wenn möglich mit Blocknote AI.
 
-### UX Flow (in-page, keine separate Seite)
+### UX Flow
 
-Button `AI: Improve Document`:
+Blocknote `/ai` Action: Verbessere / Strukturiere Dokument`:
 
+todo: ändere user-flow hierunter um neues design konzept mit nativer blocknote ai wiederzuspiegeln
 1. App sendet:
 
    * current BlockNote JSON
@@ -357,6 +379,8 @@ Button `AI: Improve Document`:
    * `Accept` → Original wird ersetzt, Save erfolgt serverseitig
 
 ### Preview Design (einfach + erweiterbar)
+
+todo: section anpassen - reflektiert nicht mehr das design - use blocknote ai module instead
 
 **Option 1: Split View Overlay (empfohlen)**
 
@@ -386,36 +410,9 @@ Du willst Stabilität und eine zukünftige Diff-Story. Das erreicht man, indem m
 * Tool nimmt eine **intermediate strukturierte Darstellung** entgegen (sections, bullets, timeline)
 * Tool erzeugt daraus deterministisches BlockNote JSON
 
-#### Architektur (Phase 0 machbar, ohne BlockNote intern komplett zu kennen)
-
-**Schritt 1 (LLM Output = Intermediate Schema):**
-
-```ts
-{
-  title: string,
-  sections: Array<{
-    heading: string,
-    blocks: Array<
-      | { type: "paragraph", text: string }
-      | { type: "bullets", items: string[] }
-      | { type: "numbered", items: string[] }
-      | { type: "callout", kind: "info"|"warning"|"success", text: string }
-      | { type: "timeline", events: Array<{ time?: string, text: string }> }
-    >
-  }>,
-  metadata_summary?: {
-    recommended_status?: "open"|"in_progress"|"resolved",
-    recommended_severity?: "low"|"medium"|"high"|"critical"
-  }
-}
-```
-
-**Schritt 2 (Tool = Deterministic Composer):**
-Tool `compose_blocknote_doc(intermediate)` erzeugt BlockNote JSON.
-
-> **[Ergänzung / Empfehlung]**: Damit ist die LLM-Aufgabe “strukturieren” (robuster) und dein Code kontrolliert die exakten Block-Typen.
-
 ### Minimum Template für “Schönes Incident Doc”
+
+todo: das ist die "Template" die die ai für neue incident-report blocknote dokumente anstreben soll. falls informationen fehlen diese als platzhalter ohne inhalte einfügen. diese sektion ausformulieren
 
 AI soll typischerweise diese Struktur erzeugen:
 
@@ -445,13 +442,14 @@ Am Ende von 2 Tagen:
 * Incident create sheet (minimal)
 * Incident detail page mit BlockNote editor + Save
 * AI Create incident from paste (mit Missing field follow-ups)
+todo: nicht mehr split view, blocknotejs ai modul verwenden
 * AI Improve document: draft compose → split preview → accept/reject
 
 ## Nice-to-have (nur wenn Zeit)
 
 * Simple search/filter in Incident table
 * Auto-save indicator im BlockNote Editor
-* “Append notes from text” AI Button
+* “Append notes from text” AI action in blocknote `/ai` command
 
 ---
 
@@ -490,14 +488,16 @@ Am Ende von 2 Tagen:
 # 10. Offene Risiken / Hinweise
 
 * BlockNote ist client-only: Detailseiten sind client-lastiger. Für Phase 0 ok.
-* AI: lokaler 3B Modell → Output muss streng validiert und ggf. retrybar sein.
-* Ohne RLS: Demo ok, aber später unbedingt nachrüsten (Security/Compliance).
+* AI: lokaler 3B Modell → Output muss streng validiert und ggf. retrybar sein. Für lokales testing erstmal okay, fehler zu erwarten aber fehlertolleranz bzw. handling muss bei jedem step mitgedacht werden
+* Ohne RLS: Demo ok, aber später geg. nachrüsten (Security/Compliance).
 
 > **[Ergänzung / Empfehlung]**: Auch ohne RLS solltest du serverseitig konsequent Rollen prüfen und niemals “nur UI hide” machen.
 
 ---
 
 ## Kurze “Design-Entscheidung” für 7.2 (damit du direkt bauen kannst)
+
+todo: refactor section - durch nutzen von blocknote ai modul wahrscheinlich nicht mehr notwendig selbst zu implementieren
 
 Ich würde es so machen:
 
