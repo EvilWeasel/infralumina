@@ -41,7 +41,7 @@ Regeln:
 
 ### 2026-02-15 - Workflow Update: Branch-Retention statt Auto-Delete
 - Branch: `main`
-- Commit: `pending`
+- Commit: `b3a3083`
 - Kontext: Wiederholte Policy-Blocker bei `git branch -d/--delete` im Agent-Runner trotz erfolgreicher Feature-Merges.
 - Entscheidung: Standard-Workflow angepasst: Feature-Branches nach Abschluss nicht automatisch loeschen; Cleanup nur auf expliziten User-Wunsch.
 - Ergebnis: Agent-Flow ist robuster gegen Runner-Policy-Restriktionen und Merge/Push bleibt unblockiert.
