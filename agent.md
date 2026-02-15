@@ -11,6 +11,12 @@ Phase 0 ist ein 2-Tage-Demo-Inkrement mit belastbarer Basisfunktion, die auch oh
 - Bei Implementierungsauftraegen immer zuerst dort Feature-ID und Abhaengigkeiten aufloesen.
 - Fuer parallele Umsetzung die Lanes und Start-/Finish-Checklist aus dem Plan befolgen.
 - Pro Aufgabe genau einen Feature-Branch nach Plan-Schema verwenden (`feat/p0-<id>-<slug>`).
+- Verbindlicher Ablauf pro Feature:
+  1. Feature-Branch erstellen.
+  2. Feature vollstaendig implementieren und lokal pruefen (mind. Lint + Build + Kernflow manuell).
+  3. User zur Verifikation auffordern (mit konkreter Test-Checklist).
+  4. Erst nach User-Freigabe committen, in `main` mergen, Feature-Branch loeschen.
+  5. Danach naechstes Feature starten.
 - Nach Umsetzung den zugehoerigen Feature-Block im Plan aktualisieren:
   - Status
   - Delivery Notes
@@ -96,9 +102,10 @@ Wenn Pflichtfelder fehlen, Follow-up-Fragen gezielt für fehlende Felder stellen
 - Bei AI-Features deterministische DB-Operationen von generativer Dokumentbearbeitung trennen.
 
 ## Lokale Kommandos
-- Dev: `npm run dev` (alternativ `bun dev`)
-- Lint: `npm run lint`
-- Build: `npm run build`
+- Paketmanager-Standard: **Bun**
+- Dev: `bun run dev`
+- Lint: `bun run lint`
+- Build: `bun run build`
 
 ## Definition of Done (Phase 0, kurz)
 - Auth + Redirect funktionieren.
