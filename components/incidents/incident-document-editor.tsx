@@ -1,9 +1,23 @@
 "use client";
 
 import type { PartialBlock } from "@blocknote/core";
-import { useCreateBlockNote } from "@blocknote/react";
+import { filterSuggestionItems } from "@blocknote/core/extensions";
+import { de as coreDictionaryDe } from "@blocknote/core/locales";
+import {
+  getDefaultReactSlashMenuItems,
+  SuggestionMenuController,
+  useCreateBlockNote,
+} from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/shadcn";
-import { Loader2 } from "lucide-react";
+import {
+  aiDocumentFormats,
+  AIExtension,
+  AIMenuController,
+  getAISlashMenuItems,
+} from "@blocknote/xl-ai";
+import { de as aiDictionaryDe } from "@blocknote/xl-ai/locales";
+import { DefaultChatTransport } from "ai";
+import { Loader2, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -56,7 +70,19 @@ function formatDateTime(value: string | null) {
   }).format(new Date(value));
 }
 
-export function IncidentDocumentEditor({
+export function IncidentDocumentEditor(props: IncidentDocumentEditorProps) {
+  if (typeof window === "undefined") {
+    return (
+      <div className="flex min-h-[260px] items-center justify-center text-sm text-muted-foreground">
+        Editor wird geladen ...
+      </div>
+    );
+  }
+
+  return <IncidentDocumentEditorInner {...props} />;
+}
+
+function IncidentDocumentEditorInner({
   incidentId,
   initialContentJson,
   initialDocumentUpdatedAt,
@@ -67,12 +93,39 @@ export function IncidentDocumentEditor({
     () => normalizeInitialContent(initialContentJson),
     [initialContentJson],
   );
+  const streamToolsProvider = useMemo(
+    () =>
+      aiDocumentFormats.html.getStreamToolsProvider({
+        defaultStreamTools: {
+          add: true,
+          update: true,
+          delete: true,
+        },
+      }),
+    [],
+  );
+  const editorDictionary = useMemo(
+    () => ({
+      ...coreDictionaryDe,
+      ai: aiDictionaryDe,
+    }),
+    [],
+  );
 
   const editor = useCreateBlockNote(
     {
       initialContent: normalizedInitialContent,
+      dictionary: editorDictionary,
+      extensions: [
+        AIExtension({
+          transport: new DefaultChatTransport({
+            api: "/api/ai/blocknote",
+          }),
+          streamToolsProvider,
+        }),
+      ],
     },
-    [incidentId],
+    [incidentId, editorDictionary, streamToolsProvider],
   );
 
   const { resolvedTheme } = useTheme();
@@ -86,15 +139,21 @@ export function IncidentDocumentEditor({
   const currentSnapshotRef = useRef(initialSnapshot);
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingSavePromiseRef = useRef<Promise<boolean> | null>(null);
+  const isAiRunningRef = useRef(false);
 
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(initialDocumentUpdatedAt);
+  const [isAiRunning, setIsAiRunning] = useState(false);
 
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
   const [pendingNavigationHref, setPendingNavigationHref] = useState<string | null>(null);
   const [isPreparingLeave, setIsPreparingLeave] = useState(false);
   const [isLeaveReady, setIsLeaveReady] = useState(false);
   const [leaveErrorMessage, setLeaveErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    isAiRunningRef.current = isAiRunning;
+  }, [isAiRunning]);
 
   const saveSnapshot = useCallback(
     async (snapshot: string): Promise<boolean> => {
@@ -181,6 +240,11 @@ export function IncidentDocumentEditor({
     const unsubscribe = editor.onChange(() => {
       const snapshot = JSON.stringify(editor.document);
       currentSnapshotRef.current = snapshot;
+
+      if (isAiRunningRef.current) {
+        setSaveState("dirty");
+        return;
+      }
 
       if (snapshot === lastSavedSnapshotRef.current) {
         setSaveState("saved");
@@ -321,20 +385,102 @@ export function IncidentDocumentEditor({
     return <span>Letztes Dokument-Update: {formatDateTime(lastSavedAt)}</span>;
   })();
 
+  const runAiImproveDocument = useCallback(async () => {
+    if (!canWrite || isAiRunning) {
+      return;
+    }
+
+    const ai = editor.getExtension(AIExtension);
+
+    if (!ai) {
+      return;
+    }
+
+    const firstRootBlock = editor.document[0];
+
+    if (!firstRootBlock) {
+      return;
+    }
+
+    ai.openAIMenuAtBlock(firstRootBlock.id);
+
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+    }
+
+    setIsAiRunning(true);
+
+    try {
+      await ai.invokeAI({
+        userPrompt:
+          [
+            "Ueberarbeite die Incident-Dokumentation als EIN konsistentes Dokument.",
+            "Wichtig: Keine zweite, parallele Struktur einfuegen.",
+            "Konsolidiere bestehende Inhalte, entferne Duplikate und ersetze Platzhaltertexte.",
+            "Nutze nur vorhandene Fakten aus dem Dokument; fehlende Informationen als offene Punkte markieren.",
+            "Bevorzugte Struktur: Summary, Impact, Timeline, Investigation, Mitigation/Resolution, Follow-ups.",
+            "Metadaten (Titel, Severity, Startzeit, Impact) nur einmal und sinnvoll eingebettet darstellen.",
+            "Den Eingangstext genau einmal als Quelle beibehalten.",
+          ].join(" "),
+        useSelection: false,
+        streamToolsProvider,
+      });
+    } finally {
+      setIsAiRunning(false);
+    }
+  }, [canWrite, editor, isAiRunning, streamToolsProvider]);
+
   return (
     <>
       <div className="flex h-full min-h-0 flex-col gap-2">
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-base font-semibold">Dokumentation</h2>
-          <p className="text-xs text-muted-foreground">{headerStatus}</p>
+          <div className="flex items-center gap-2">
+            {canWrite ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => void runAiImproveDocument()}
+                disabled={isAiRunning}
+              >
+                {isAiRunning ? (
+                  <>
+                    <Loader2 className="size-3 animate-spin" />
+                    <span>AI aktiv</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="size-3" />
+                    <span>AI verbessern</span>
+                  </>
+                )}
+              </Button>
+            ) : null}
+            <p className="text-xs text-muted-foreground">{headerStatus}</p>
+          </div>
         </div>
 
-        <div className="incident-editor-surface min-h-0 flex-1 overflow-auto rounded-lg border border-border/60 bg-background/30 [&_.bn-container]:min-h-full [&_.bn-editor]:min-h-full">
+        <div className="incident-editor-surface min-h-0 flex-1 overflow-auto rounded-lg border border-border/60 bg-card [&_.bn-container]:min-h-full [&_.bn-editor]:min-h-full">
           <BlockNoteView
             editor={editor}
             editable={canWrite}
             theme={resolvedTheme === "dark" ? "dark" : "light"}
-          />
+            slashMenu={false}
+            className="h-full"
+          >
+            <SuggestionMenuController
+              triggerCharacter="/"
+              getItems={async (query) =>
+                filterSuggestionItems(
+                  [...getDefaultReactSlashMenuItems(editor), ...getAISlashMenuItems(editor)],
+                  query,
+                )
+              }
+            />
+            <AIMenuController />
+          </BlockNoteView>
         </div>
       </div>
 

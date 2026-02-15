@@ -2,7 +2,7 @@ import { ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { IncidentDocumentEditor } from "@/components/incidents/incident-document-editor";
+import { IncidentDocumentEditorClient } from "@/components/incidents/incident-document-editor-client";
 import { IncidentMetaForm } from "@/components/incidents/incident-meta-form";
 import { Badge } from "@/components/ui/badge";
 import { canWriteIncidents } from "@/lib/auth/roles";
@@ -143,8 +143,8 @@ export default async function IncidentDetailPage({ params }: IncidentDetailPageP
         </div>
       </details>
 
-      <div className="flex min-h-0 flex-col rounded-lg border border-border/60 bg-card/20 p-3">
-        <IncidentDocumentEditor
+      <div className="flex min-h-0 flex-col rounded-lg border border-border/60 bg-card p-3">
+        <IncidentDocumentEditorClient
           incidentId={incident.id}
           initialContentJson={incidentDocument?.content_json ?? []}
           initialDocumentUpdatedAt={incidentDocument?.updated_at ?? null}

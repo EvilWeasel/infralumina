@@ -49,6 +49,10 @@ function normalizeStartedAt(value: string | null | undefined) {
     return undefined;
   }
 
+  if (!/^\d{4}-\d{2}-\d{2}/.test(value)) {
+    return undefined;
+  }
+
   const parsedDate = new Date(value);
 
   if (Number.isNaN(parsedDate.getTime())) {
