@@ -130,3 +130,11 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer components {
+  .incident-editor-surface .bn-container,
+  .incident-editor-surface .bn-editor {
+    min-height: 100%;
+    background-color: transparent;
+  }
+}

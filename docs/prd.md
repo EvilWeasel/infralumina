@@ -309,6 +309,9 @@ Alles andere defaultet oder ist optional:
 
 **AI Create Mechanik:**
 
+* Implementierung ueber **Vercel AI SDK** mit **Zod structured output** (kein direkter Low-Level REST-Call im Feature-Code)
+* Provider in Phase 0: `@ai-sdk/openai-compatible` gegen lokalen `llama.cpp` Endpoint (`LOCAL_LLM_BASE_URL`, `LOCAL_LLM_MODEL`)
+* Spaeterer Wechsel auf Cloud-Provider (z. B. OpenAI) soll nur Provider-Konfiguration aendern, nicht den Workflow
 * AI analysiert den Paste/Textarea-Text
 * Versucht `title` und `severity` zu extrahieren
 * Falls eines oder beide fehlen → Follow-up Fragen (explizit nennen, dass diese erforderlich sind)

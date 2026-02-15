@@ -1,8 +1,8 @@
 import Link from "next/link";
 
+import { AiCreateIncidentSheet } from "@/components/incidents/ai-create-incident-sheet";
 import { NewIncidentSheet } from "@/components/incidents/new-incident-sheet";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { canWriteIncidents } from "@/lib/auth/roles";
 import { getCurrentAuthContext } from "@/lib/auth/session";
 import {
@@ -70,7 +70,7 @@ export default async function IncidentsPage() {
         </div>
         <div className="flex items-center gap-2">
           {canCreateIncidents ? <NewIncidentSheet /> : null}
-          <Button disabled={!canCreateIncidents}>AI Create (P0-08)</Button>
+          <AiCreateIncidentSheet disabled={!canCreateIncidents} />
         </div>
       </div>
 

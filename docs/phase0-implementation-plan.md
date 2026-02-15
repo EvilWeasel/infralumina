@@ -57,8 +57,8 @@ Jeder Agent arbeitet immer so:
 | P0-04 | Rollen-Guards + Admin User Management | `feat/p0-04-admin-role-management` | P0-01, P0-03 | DONE |
 | P0-05 | Incident Liste (Tabelle + Navigation) | `feat/p0-05-incidents-list` | P0-01, P0-03 | DONE |
 | P0-06 | Manual Incident Create (Sheet + Persistenz) | `feat/p0-06-incident-manual-create` | P0-05 | DONE |
-| P0-07 | Incident Detail + Meta-Update + Dokument Save | `feat/p0-07-incident-detail-editor-save` | P0-06 | TODO |
-| P0-08 | AI Create Incident from Text (Follow-up) | `feat/p0-08-ai-create-incident` | P0-06 | TODO |
+| P0-07 | Incident Detail + Meta-Update + Dokument Save | `feat/p0-07-incident-detail-editor-save` | P0-06 | DONE |
+| P0-08 | AI Create Incident from Text (Follow-up) | `feat/p0-08-ai-create-incident` | P0-06 | DONE |
 | P0-09 | AI Improve Document (BlockNote AI) | `feat/p0-09-ai-improve-document` | P0-07 | TODO |
 | P0-10 | End-to-End Hardening + Demo QA | `feat/p0-10-phase0-hardening` | P0-04..P0-09 | TODO |
 
@@ -432,7 +432,7 @@ Open Questions:
 
 ## P0-08 AI Create Incident from Text (Follow-up)
 
-Status: TODO  
+Status: DONE  
 Branch: `feat/p0-08-ai-create-incident`  
 Depends On: P0-06  
 Tags: `ai`, `incident-create`, `structured-output`, `follow-up`
@@ -469,10 +469,22 @@ Tests:
 - Lint + Build.
 
 Delivery Notes:
-- -
+- Added reusable incident create helper in `lib/incidents/create.ts` and switched manual create action to reuse it.
+- Implemented AI extraction pipeline with Vercel AI SDK (`generateText` + `Output.object`) and Zod validation in `lib/incidents/ai-intake.ts`.
+- Added OpenAI-compatible local model provider (`llama.cpp`) via `@ai-sdk/openai-compatible` in `lib/ai/provider.ts`.
+- Added full `AI Create` flow on incidents list:
+  - new sheet component `components/incidents/ai-create-incident-sheet.tsx`
+  - server actions `app/dashboard/incidents/ai-actions.ts`
+  - analyze, follow-up, editable preview, and create+redirect
+- Added regression fixture corpus for P0-08 in `docs/test-fixtures/ai-incident-create-intake-cases.md`.
+- Adjusted `Started At` UX:
+  - default to current datetime when no explicit temporal signal is present
+  - enforce German format `DD.MM.YYYY, HH:mm` in the sheet
+- Improved detail editor surface behavior for long documents and consistent background fill in `components/incidents/incident-document-editor.tsx` + `app/globals.css`.
+- Updated env template with local LLM vars (`LOCAL_LLM_BASE_URL`, `LOCAL_LLM_MODEL`, optional `LOCAL_LLM_API_KEY`).
 
 Open Questions:
-- -
+- Local llama.cpp endpoint may emit AI SDK warnings about `responseFormat`; extraction still works, but model/provider tuning should be revisited in Phase 1.
 
 ## P0-09 AI Improve Document (BlockNote AI)
 
