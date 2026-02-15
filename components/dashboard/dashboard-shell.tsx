@@ -168,7 +168,7 @@ export function DashboardShell({
         ) : null}
 
         <main className="min-w-0 flex-1">
-          <div className="mx-auto w-full max-w-6xl px-6 py-8">{children}</div>
+          <div className="mx-auto w-full max-w-[1700px] px-3 py-4 md:px-4 md:py-5">{children}</div>
         </main>
       </div>
     </div>

@@ -147,7 +147,8 @@ Delivery Notes:
 - Checks run: `npm run lint` (passes, one pre-existing warning), `npm run build` (passes).
 
 Open Questions:
-- -
+- Browser `beforeunload` guard can protect against tab close/refresh with unsaved edits, but an app-internal route-leave save/discard dialog should be added in Phase 1 together with revision-aware save/discard semantics.
+- Detail page should move toward a Notion-like editor-first layout in Phase 1: reduce container nesting/padding and make metadata/navigation feel lighter while keeping quick access.
 
 ## P0-02 Public Landing + Login + Redirects
 

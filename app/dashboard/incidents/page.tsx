@@ -5,7 +5,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { canWriteIncidents } from "@/lib/auth/roles";
 import { getCurrentAuthContext } from "@/lib/auth/session";
-import type { Database } from "@/lib/supabase/database.types";
+import {
+  formatIncidentSeverityLabel,
+  formatIncidentStatusLabel,
+  getIncidentSeverityBadgeClass,
+  getIncidentStatusBadgeClass,
+} from "@/lib/incidents/presentation";
 import { createSupabaseServerClient } from "@/lib/supabase/server-client";
 
 function formatDateTime(value: string | null) {
@@ -17,34 +22,6 @@ function formatDateTime(value: string | null) {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));
-}
-
-function getStatusBadgeVariant(status: Database["public"]["Enums"]["incident_status"]) {
-  switch (status) {
-    case "open":
-      return "destructive";
-    case "in_progress":
-      return "secondary";
-    case "resolved":
-      return "outline";
-    default:
-      return "outline";
-  }
-}
-
-function getSeverityBadgeVariant(severity: Database["public"]["Enums"]["incident_severity"]) {
-  switch (severity) {
-    case "critical":
-      return "destructive";
-    case "high":
-      return "secondary";
-    case "medium":
-      return "default";
-    case "low":
-      return "outline";
-    default:
-      return "outline";
-  }
 }
 
 export default async function IncidentsPage() {
@@ -131,15 +108,21 @@ export default async function IncidentsPage() {
                   </td>
                   <td className="px-4 py-3">
                     <Link href={href} className="inline-flex">
-                      <Badge variant={getStatusBadgeVariant(incident.status)}>
-                        {incident.status}
+                      <Badge
+                        variant="outline"
+                        className={getIncidentStatusBadgeClass(incident.status)}
+                      >
+                        {formatIncidentStatusLabel(incident.status)}
                       </Badge>
                     </Link>
                   </td>
                   <td className="px-4 py-3">
                     <Link href={href} className="inline-flex">
-                      <Badge variant={getSeverityBadgeVariant(incident.severity)}>
-                        {incident.severity}
+                      <Badge
+                        variant="outline"
+                        className={getIncidentSeverityBadgeClass(incident.severity)}
+                      >
+                        {formatIncidentSeverityLabel(incident.severity)}
                       </Badge>
                     </Link>
                   </td>
