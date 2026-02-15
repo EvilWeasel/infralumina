@@ -2,8 +2,8 @@
 
 ### 0. Meta
 
-* **Stack:** Next.js (App Router), Tailwind, shadcn/ui, BlockNote, Supabase (Auth+DB), Drizzle ORM, Vercel AI SDK, lokaler llama-server (OpenAI-kompatibel) für lokalen Prototyp mit späterem wechsel auf OpenAI-API oder anderer Cloud-Provider
-* **Konventionen:** **Server Actions bevorzugt**, keine klassischen API-Routen, intern (Performance/Caching sekundär), Modularer, Wartbarer Code, Bevorzugt Funktionale Patterns, Composition
+* **Stack:** Next.js (App Router), Tailwind, shadcn/ui, BlockNote + `@blocknote/xl-ai`, Supabase (Auth+DB), Drizzle ORM, Vercel AI SDK, lokaler llama-server (OpenAI-kompatibel) für lokalen Prototyp mit späterem wechsel auf OpenAI-API oder anderer Cloud-Provider
+* **Konventionen:** **Server Actions bevorzugt**, keine klassischen Business-API-Routen (Ausnahme: AI-Streaming-Transport), intern (Performance/Caching sekundär), Modularer, Wartbarer Code, Bevorzugt Funktionale Patterns, Composition
 * **Auth:** GitHub OAuth only
 * **Sprachen:** UI Deutsch, Code Englisch, Projekt-Dokumentation Deutsch, Code-Dokumentation und Kommentare Englisch
 
@@ -339,82 +339,54 @@ AI liefert zwei mögliche Ergebnisse:
 * AI fragt explizit nach fehlenden Informationen für missing fields
 * User gibt in Prompt weitere informationen an
 
-### Output Schema (Zod)
+**Wichtig:** Das obige Schema ist nur für strukturierte Incident-Felder. Narrative Dokumentinhalte werden nicht als JSON vom Modell erzeugt, sondern über BlockNote AI-Tools in Schritt 2.
 
-```ts
-{
-  title: string,
-  severity: "low"|"medium"|"high"|"critical",
-  impact?: string,
-  started_at?: string, // ISO optional
-  summary_blocks: BlockNoteDocDraft, // siehe 7.2
-  missing_fields?: Array<{
-    field: "impact" | "title" | "started_at",
-    question: string
-  }>
-}
-```
+### Schritt 2 nach erfolgreicher Incident-Erstellung
+
+Nach `Create Incident`:
+
+1. Incident + leeres `incident_document` persistieren
+2. Zur Detailseite navigieren
+3. Im Editor einen AI-Command ausführen, der aus dem bisherigen Input einen ersten Report-Draft erzeugt
+
+Damit bleiben DB-Felder deterministisch, während die Dokumenterstellung frei und editor-nah erfolgt.
 
 ---
 
-## 7.2 AI Improve Incident Document (BlockNote Draft + Preview + Accept/Reject)
+## 7.2 AI Improve Incident Document (Native BlockNote AI)
 
-Dein Ziel:
-Aus sloppy Freitext im BlockNote soll AI **das BlockNote-Dokument** anpassen, sodass es sauber strukturiert ist — preferibly **als Draft**, ohne direkt zu überschreiben wenn möglich mit Blocknote AI.
+Ziel: Aus unstrukturiertem Text im BlockNote-Editor ein besser strukturiertes Incident-Dokument machen, ohne eigenes Composer-Schema.
 
 ### UX Flow
 
-Blocknote `/ai` Action: Verbessere / Strukturiere Dokument`:
+BlockNote `/ai` Action: `AI: Verbessere / Strukturiere Dokument`
 
-todo: ändere user-flow hierunter um neues design konzept mit nativer blocknote ai wiederzuspiegeln
-1. App sendet:
+1. Client ruft `invokeAI({ userPrompt, useSelection, streamToolsProvider })` auf
+2. Backend streamt via Vercel AI SDK; Modell arbeitet mit BlockNote Tool-Definitions
+3. AIExtension übernimmt Tool-Calls und zeigt den nativen Review-Flow
+4. User entscheidet:
+   * `Accept` → Änderungen übernehmen und speichern
+   * `Reject` → Änderungen verwerfen
 
-   * current BlockNote JSON
-   * incident meta (title, status, severity, started/resolved)
-2. AI generiert **BlockNote Draft JSON**
-3. UI zeigt **Draft Preview + Compare**
-4. User klickt:
+### Persistenz bei Accept/Reject
 
-   * `Reject` → zurück zum Original, keine Änderungen
-   * `Accept` → Original wird ersetzt, Save erfolgt serverseitig
+* `Accept`: `incident_documents.content_json` aktualisieren (`updated_at`, `updated_by`)
+* `Reject`: keine Persistierung
+* Phase 1: optional zusätzlich Revisionseintrag pro Accept/Manual Save
 
-### Preview Design (einfach + erweiterbar)
+### Operationskontrolle pro Command
 
-todo: section anpassen - reflektiert nicht mehr das design - use blocknote ai module instead
+Für Sicherheit/UX kann je Command eingeschränkt werden:
 
-**Option 1: Split View Overlay (empfohlen)**
+* `update only` für reine Umschreibungen
+* `add + update + delete` für strukturelle Reorganisation
 
-* Beim Klick öffnet sich ein **Full-height Drawer/Overlay** im Main Content (nicht “new page”)
-* Oben: “AI Draft Preview”
-* Darunter: 2 Spalten:
-
-  * links: “Current” (read-only BlockNote)
-  * rechts: “Proposed” (read-only BlockNote)
-* Footer: Reject / Accept
-
-> **[Ergänzung / Empfehlung]**: Split View ist die beste Grundlage, um später “Diff View” zu bauen (Phase 1), ohne UX neu zu denken.
-
-**Option 2: Bottom Sheet Compare**
-
-* Von unten fährt ein Pane hoch
-* Tabs: Current / Proposed
-* Weniger breit, dafür einfacher auf kleinen Screens
-
-Ich empfehle Option 1 für Desktop-first interne Tools.
-
-### Wichtig: Tool-Call statt “LLM spuckt JSON”
-
-Du willst Stabilität und eine zukünftige Diff-Story. Das erreicht man, indem man **nicht** “bitte gib BlockNote JSON aus” als reinen Prompt macht, sondern:
-
-* Modell ruft Tool `compose_blocknote_doc` auf
-* Tool nimmt eine **intermediate strukturierte Darstellung** entgegen (sections, bullets, timeline)
-* Tool erzeugt daraus deterministisches BlockNote JSON
+Standard für `AI Improve`: `add + update + delete`, damit echte Strukturverbesserungen möglich sind.
 
 ### Minimum Template für “Schönes Incident Doc”
 
-todo: das ist die "Template" die die ai für neue incident-report blocknote dokumente anstreben soll. falls informationen fehlen diese als platzhalter ohne inhalte einfügen. diese sektion ausformulieren
-
-AI soll typischerweise diese Struktur erzeugen:
+Template ist eine **Guideline**, kein starres Schema.  
+Für `AI Create` und `AI Improve` soll diese Zielstruktur angestrebt werden; fehlende Informationen werden als Platzhalter markiert statt erfunden.
 
 1. **Summary**
 2. **Impact**
@@ -423,7 +395,11 @@ AI soll typischerweise diese Struktur erzeugen:
 5. **Mitigation / Resolution**
 6. **Follow-ups / Next steps**
 
-Das macht Dokus sofort scanbar.
+**Platzhalterregel bei fehlenden Daten:**
+
+* `Unbekannt` oder `Noch zu ergänzen` explizit kennzeichnen
+* Keine fiktiven Zeiten, Systeme oder Ursachen erzeugen
+* Timeline-Einträge nur anlegen, wenn aus Input ableitbar; sonst leere Timeline-Sektion mit Hinweis
 
 ---
 
@@ -442,8 +418,7 @@ Am Ende von 2 Tagen:
 * Incident create sheet (minimal)
 * Incident detail page mit BlockNote editor + Save
 * AI Create incident from paste (mit Missing field follow-ups)
-todo: nicht mehr split view, blocknotejs ai modul verwenden
-* AI Improve document: draft compose → split preview → accept/reject
+* AI Improve document mit nativer BlockNote AI (`@blocknote/xl-ai`) inkl. Accept/Reject
 
 ## Nice-to-have (nur wenn Zeit)
 
@@ -488,32 +463,21 @@ todo: nicht mehr split view, blocknotejs ai modul verwenden
 # 10. Offene Risiken / Hinweise
 
 * BlockNote ist client-only: Detailseiten sind client-lastiger. Für Phase 0 ok.
-* AI: lokaler 3B Modell → Output muss streng validiert und ggf. retrybar sein. Für lokales testing erstmal okay, fehler zu erwarten aber fehlertolleranz bzw. handling muss bei jedem step mitgedacht werden
+* AI: lokaler 3B Modell-Server muss Tool-Calling und strukturierte Outputs stabil unterstützen; sonst Fallback auf OpenAI-kompatiblen Cloud-Provider.
+* AI-Feldextraktion kann trotz Schema unvollständig sein: Follow-up Flow bleibt Pflicht.
+* BlockNote AI (`@blocknote/xl-ai`) ist XL/dual-lizenziert (u. a. GPL/Commercial). Lizenzentscheidung muss vor produktiver Nutzung geklärt sein.
 * Ohne RLS: Demo ok, aber später geg. nachrüsten (Security/Compliance).
 
 > **[Ergänzung / Empfehlung]**: Auch ohne RLS solltest du serverseitig konsequent Rollen prüfen und niemals “nur UI hide” machen.
 
 ---
 
-## Kurze “Design-Entscheidung” für 7.2 (damit du direkt bauen kannst)
+## 11. Architektur-Leitplanken aus Research
 
-todo: refactor section - durch nutzen von blocknote ai modul wahrscheinlich nicht mehr notwendig selbst zu implementieren
-
-Ich würde es so machen:
-
-* **AI Improve** Button öffnet im selben Screen einen **Overlay Split View**.
-* Links: aktuelle BlockNote read-only
-* Rechts: proposed BlockNote read-only
-* Unten sticky: Reject / Accept
-* Accept speichert sofort (Server Action) und schließt Overlay.
-
-Das ist für Nutzer “keine Friction” und super erweiterbar Richtung Diff/Revisions.
-
----
-
-Wenn du möchtest, mache ich als nächsten Schritt direkt noch **zwei konkrete Anhänge** fürs PRD, die Coding-AIs lieben:
-
-1. **Drizzle Schema (TypeScript) + Supabase Auth user mapping**
-2. **Tool-Call Design für `compose_blocknote_doc` inkl. konkreter BlockNote JSON Builder-Skeleton** (ohne API Routes, nur Server Actions)
-
-Damit hast du praktisch eine “Bauanleitung” statt nur Spezifikation.
+* Keine incident-spezifische Zwischenrepräsentation für Narrative bauen; Dokument-Edits laufen über BlockNote AI Tools.
+* Trennung strikt halten:
+  * Structured Output (Vercel AI SDK) für Incident-DB-Felder
+  * BlockNote AI für inhaltliche Dokumentbearbeitung
+* Template-Guidance im User Prompt oder als pre-seeded Dokument verwenden, nicht durch harte Schema-Validierung erzwingen.
+* Core-Systemprompt von BlockNote AI nur minimal anpassen; domänenspezifische Regeln als zusätzlichen Prompt-Kontext mitgeben.
+* Falls später ein eigener Chat neben dem `/ai` Menü gebraucht wird, auf BlockNote AI APIs (`buildAIRequest` / `sendMessageWithAIRequest`) aufsetzen statt das Protokoll neu zu bauen.
