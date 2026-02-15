@@ -1,0 +1,108 @@
+# Infralumina Agent Context
+
+## Projektziel
+Infralumina ist ein leichtgewichtiges internes ITSM-System mit Fokus auf Incident Management in stressigen Situationen:
+`schnell erfassen -> später sauber dokumentieren`.
+
+Phase 0 ist ein 2-Tage-Demo-Inkrement mit belastbarer Basisfunktion, die auch ohne AI nutzbar bleibt.
+
+## Agentic Workflow (Pflicht fuer Implementierung)
+- Primarer Umsetzungsplan: `docs/phase0-implementation-plan.md`
+- Bei Implementierungsauftraegen immer zuerst dort Feature-ID und Abhaengigkeiten aufloesen.
+- Fuer parallele Umsetzung die Lanes und Start-/Finish-Checklist aus dem Plan befolgen.
+- Pro Aufgabe genau einen Feature-Branch nach Plan-Schema verwenden (`feat/p0-<id>-<slug>`).
+- Nach Umsetzung den zugehoerigen Feature-Block im Plan aktualisieren:
+  - Status
+  - Delivery Notes
+  - Open Questions
+- Wenn PRD und Plan abweichen, gilt `docs/prd.md`; danach den Plan aktualisieren.
+
+## Phase-0 Scope (Must-Have)
+1. Landing Page (`/`) mit GitHub Login und Redirect für eingeloggte User auf `/dashboard/incidents`.
+2. Dashboard Shell mit collapsible Sidebar und konsistentem Layout.
+3. Rollenmodell: `user` (read), `operator` (write), `admin` (role management).
+4. Incident-Modul:
+   - Liste (`/dashboard/incidents`)
+   - Create Sheet (manual)
+   - Detailseite (`/dashboard/incidents/[id]`) mit Meta + BlockNote-Doku
+5. AI Features:
+   - `AI Create Incident from Text` inkl. Follow-up bei fehlenden Pflichtdaten
+   - `AI Improve Document` via `@blocknote/xl-ai` mit Accept/Reject
+6. Admin-Seite (`/dashboard/admin`) für Rollenverwaltung (nur admin).
+
+## Nicht Teil von Phase 0
+- RLS/Policies
+- Revision History / Revert
+- Diff View
+- Change Management, Inventory, Knowledge Base (erst spätere Phasen)
+
+## Architektur-Leitplanken
+- Stack: Next.js App Router, Tailwind, shadcn/ui, BlockNote + `@blocknote/xl-ai`, Supabase (Auth+DB), Drizzle ORM, Vercel AI SDK.
+- Konvention: Server Actions bevorzugen; keine klassischen Business-API-Routen.
+  - Ausnahme: AI-Streaming-Transport.
+- Rollenprüfung serverseitig erzwingen. UI-Hiding ist nur UX, nicht Security.
+- AI strikt trennen:
+  - Strukturierte Incident-Felder: Vercel AI SDK Structured Output (z. B. Zod Schema).
+  - Narrative Dokumentbearbeitung: BlockNote AI Tools.
+- Keine eigene narrative Zwischenrepräsentation für Incident-Dokumente einführen.
+
+## Datenmodell (Phase 0)
+### `incidents`
+- `id` uuid
+- `title` text (required)
+- `status` enum: `open | in_progress | resolved` (default `open`)
+- `severity` enum: `low | medium | high | critical` (required)
+- `impact` text (optional)
+- `started_at` timestamp (default `now`)
+- `resolved_at` timestamp nullable
+- `reporter_id` user id
+- `created_at`, `updated_at`
+
+### `incident_documents`
+- `id` uuid
+- `incident_id` uuid
+- `content_json` jsonb (BlockNote document)
+- `updated_at`
+- `updated_by`
+
+## AI Create Incident: Mindestanforderung
+Pflichtfelder vor Create:
+- `title`
+- `severity`
+
+Optional/default:
+- `status` default `open`
+- `started_at` default `now`
+- `impact` optional
+
+Wenn Pflichtfelder fehlen, Follow-up-Fragen gezielt für fehlende Felder stellen und erst dann Create ermöglichen.
+
+## UX-Richtlinien
+- Sidebar links, collapsible, auf allen Dashboard-Seiten konsistent.
+- Main Content mit begrenzter Lesebreite (z. B. `max-w-6xl mx-auto px-6`).
+- Tabelle zeigt mindestens: `title`, `status`, `severity`, `started`, `resolved`, `reporter`, `updated`.
+- Status/Severity visuell mit Badges.
+
+## Sprach- und Doku-Regeln
+- UI: Deutsch
+- Code: Englisch
+- Projekt-Dokumentation: Deutsch
+- Code-Kommentare/-Doku: Englisch
+
+## Arbeitsmodus für Implementierung
+- Kleine, modulare, wartbare Komponenten.
+- Funktionale Patterns und Composition bevorzugen.
+- Bei neuen Features zuerst Autorisierung + Datenmodell + Server Action festziehen, danach UI/AI-Flow.
+- Bei AI-Features deterministische DB-Operationen von generativer Dokumentbearbeitung trennen.
+
+## Lokale Kommandos
+- Dev: `npm run dev` (alternativ `bun dev`)
+- Lint: `npm run lint`
+- Build: `npm run build`
+
+## Definition of Done (Phase 0, kurz)
+- Auth + Redirect funktionieren.
+- Rollen und Guards funktionieren serverseitig.
+- Incident List/Create/Detail stabil nutzbar.
+- Admin-Rollenverwaltung vorhanden.
+- AI Create (mit Missing-Field Follow-up) und AI Improve (Accept/Reject) funktionieren.

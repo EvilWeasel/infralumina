@@ -1,36 +1,85 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Infralumina
 
-## Getting Started
+Leichtgewichtiges, intern betriebenes ITSM-System mit Fokus auf Incident Management.
+Der Kernansatz: schnell erfassen, später strukturiert dokumentieren, inklusive AI-Unterstützung ohne Prozess-Overhead.
 
-First, run the development server:
+## Aktueller Stand
+
+Dieses Repository bildet Phase 0 (Demo-Inkrement) ab: ein belastbares Incident-Modul mit Rollen, Admin-Grundfunktionen und ersten AI-Workflows.
+
+Im Fokus stehen:
+- Landing + GitHub Login
+- Dashboard Shell mit Sidebar
+- Rollenmodell (`user`, `operator`, `admin`)
+- Incident-Liste, Incident-Erstellung, Incident-Detailansicht
+- AI-gestützte Incident-Erstellung aus Freitext
+- AI-gestützte Dokumentverbesserung im Editor
+
+## Produktprinzipien
+
+- Wenig Friction im Betrieb, besonders in stressigen Incident-Situationen.
+- Serverseitige Autorisierung ist maßgeblich; UI-Restriktionen sind nur ergänzend.
+- Trennung von strukturierter Felderkennung und narrativer Dokumentbearbeitung:
+  - Strukturierte Incident-Felder via AI Structured Output
+  - Dokumentbearbeitung über BlockNote AI
+
+## Stack
+
+- Next.js (App Router) + React + TypeScript
+- Tailwind CSS + shadcn/ui
+- Supabase (Auth + DB) + Drizzle ORM
+- BlockNote + `@blocknote/xl-ai`
+- Vercel AI SDK
+
+## Schnellstart
+
+Voraussetzungen:
+- Node.js 20+ (oder Bun)
+
+Installation und Start:
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+App lokal öffnen:
+- `http://localhost:3000`
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `npm run dev` startet die Entwicklungsumgebung
+- `npm run lint` führt ESLint aus
+- `npm run build` erstellt den Production-Build
+- `npm run start` startet den Production-Server
 
-## Learn More
+## Projektstruktur (Kurzüberblick)
 
-To learn more about Next.js, take a look at the following resources:
+- `app/` App-Router Pages und Layouts
+- `components/` UI-Komponenten (inkl. `components/ui`)
+- `lib/` Hilfsfunktionen
+- `docs/` Produkt- und Research-Dokumentation
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Sprache und Konventionen
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- UI-Texte: Deutsch
+- Code: Englisch
+- Projektdokumentation: Deutsch
+- Kommentare und Code-Dokumentation: Englisch
 
-## Deploy on Vercel
+Architekturleitlinie:
+- Server Actions bevorzugen; klassische Business-API-Routen vermeiden (Ausnahme: AI-Streaming-Transport).
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Roadmap (Kurz)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Nach Phase 0 sind unter anderem geplant:
+- Dokumentationsbaum (rekursiv)
+- System Inventory / Mini-CMDB
+- Revisionen + Revert
+- Audit Log
+- Similar Incidents
+
+## Weitere Details
+
+Vollständige fachliche Anforderungen und Entscheidungen:
+- `docs/prd.md`
