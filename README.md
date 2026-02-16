@@ -83,3 +83,5 @@ Nach Phase 0 sind unter anderem geplant:
 
 Vollständige fachliche Anforderungen und Entscheidungen:
 - `docs/prd.md`
+- `docs/setup-supabase.md`
+- `docs/codex-cloud-setup.md`
